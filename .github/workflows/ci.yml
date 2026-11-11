@@ -1,0 +1,182 @@
+# Paramix baseline CI
+#
+# Scope: build the application on the four v1 targets and run the unit test
+# suite on Linux. Packaging, signing, model downloads and stem separation are
+# intentionally out of scope for the baseline; those arrive with the feature
+# branches. No model weights are downloaded by CI.
+#
+# This workflow is fork-owned (not a copy of upstream's release pipeline) so it
+# works without maintainer secrets, self-hosted runners or deployment steps.
+
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - "chore/**"
+      - "feature/**"
+      - "fix/**"
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Repository checks
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Check for merge conflict markers
+        run: |
+          if git grep -nE '^(<<<<<<< |======= |>>>>>>> )' -- ':!*.md'; then
+            echo "Merge conflict markers found" >&2
+            exit 1
+          fi
+
+      - name: Check whitespace errors
+        run: git show --check --format= HEAD
+
+      - name: Validate YAML and JSON
+        run: |
+          python3 -m pip install --quiet pyyaml
+          python3 - <<'PY'
+          import json, pathlib, sys
+          import yaml
+
+          errors = []
+          for path in pathlib.Path(".").rglob("*"):
+              if ".git" in path.parts:
+                  continue
+              if path.suffix in {".yml", ".yaml"}:
+                  try:
+                      with path.open("rb") as f:
+                          yaml.safe_load(f)
+                  except Exception as exc:
+                      errors.append(f"{path}: {exc}")
+              elif path.suffix == ".json":
+                  try:
+                      json.loads(path.read_text())
+                  except Exception as exc:
+                      errors.append(f"{path}: {exc}")
+          if errors:
+              print("\n".join(errors))
+              sys.exit(1)
+          print("YAML/JSON OK")
+          PY
+
+  linux:
+    name: Linux x64
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Install build dependencies
+        run: tools/debian_buildenv.sh setup
+
+      - name: Configure
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DQT6=ON \
+            -DQML=ON \
+            -DWARNINGS_FATAL=ON
+
+      - name: Build
+        run: cmake --build build --parallel "$(nproc)"
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+  macos-arm64:
+    name: macOS arm64
+    runs-on: macos-15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up build environment
+        run: source tools/macos_buildenv.sh setup
+        env:
+          BUILDENV_BASEPATH: ${{ runner.workspace }}/buildenv
+
+      - name: Configure
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DQT6=ON \
+            -DQML=ON \
+            -DWARNINGS_FATAL=ON
+
+      - name: Build
+        run: cmake --build build --parallel "$(sysctl -n hw.ncpu)"
+
+  macos-x64:
+    name: macOS x86_64
+    runs-on: macos-15-intel
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up build environment
+        run: source tools/macos_buildenv.sh setup
+        env:
+          BUILDENV_BASEPATH: ${{ runner.workspace }}/buildenv
+
+      - name: Configure
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DQT6=ON \
+            -DQML=OFF \
+            -DWARNINGS_FATAL=ON
+
+      - name: Build
+        run: cmake --build build --parallel "$(sysctl -n hw.ncpu)"
+
+  windows-x64:
+    name: Windows x64
+    runs-on: windows-2022
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Set up build environment
+        shell: cmd
+        run: tools\windows_buildenv.bat setup
+        env:
+          BUILDENV_BASEPATH: C:\buildenv
+          BUILDENV_RELEASE: "TRUE"
+
+      - name: Configure
+        run: |
+          cmake -S . -B build `
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo `
+            -DQT6=ON `
+            -DQML=ON `
+            -DWARNINGS_FATAL=ON
+
+      - name: Build
+        run: cmake --build build --config RelWithDebInfo
