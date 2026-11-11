@@ -42,6 +42,9 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v5
+        with:
+          # Two commits so the whitespace gate can diff the pushed change.
+          fetch-depth: 2
 
       - name: Check for merge conflict markers
         run: |
@@ -51,11 +54,16 @@ jobs:
           fi
 
       - name: Check whitespace errors
-        # Only the tip commit is checked. The imported Mixxx tree contains
+        # Only the pushed commit is checked. The imported Mixxx tree contains
         # pre-existing trailing whitespace, so checking the whole tree (or the
         # import commit itself) would always fail for reasons unrelated to the
-        # change under test.
-        run: git diff --check HEAD^ HEAD
+        # change under test. Skips cleanly on a root commit.
+        run: |
+          if git rev-parse --verify HEAD^ >/dev/null 2>&1; then
+            git diff --check HEAD^ HEAD
+          else
+            echo "Root commit: skipping whitespace diff"
+          fi
 
       - name: Validate YAML and JSON
         # pip may refuse to install into the externally managed system
