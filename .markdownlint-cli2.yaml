@@ -1,0 +1,43 @@
+# markdownlint-cli2 configuration for this tree.
+# Baseline: every tracked markdown file (root *.md, docs/*.md, packaging/,
+# src/rendergraph/) was linted with default settings (markdownlint v0.41.1).
+# Only rules that the existing documents already violate are disabled, so all
+# remaining default rules (heading style, fences, list style, ...) are still
+# enforced. lib/ markdown is excluded globally in .pre-commit-config.yaml.
+# Whitespace/formatting rules (MD009, MD012, ...) are disabled because the
+# historical docs/*.md files (old-context.md, agent-context.md,
+# paramix-stem-beatgrid-ui-plan.md) and CHANGELOG.md do not follow them;
+# they can be re-enabled once those documents are cleaned up.
+config:
+  # CONTRIBUTING.md wraps ~100 chars, CHANGELOG.md and the docs/*.md
+  # planning/transcript files contain lines far beyond any sane limit; no
+  # single line-length setting fits.
+  MD013: false # line-length
+  # CHANGELOG.md repeats the same section headings ("Build", "Bugfixes", ...)
+  # in every release entry.
+  MD024: false # no-duplicate-heading
+  # docs/old-context.md is a historical transcript with blank-line gaps,
+  # tab-indented bullets, trailing spaces and no leading heading.
+  MD012: false # no-multiple-blanks
+  MD010: false # no-hard-tabs
+  MD009: false # no-trailing-spaces
+  MD041: false # first-line-heading
+  # The planning docs (docs/agent-context.md,
+  # docs/paramix-stem-beatgrid-ui-plan.md) do not put blank lines around
+  # lists/headings/tables, use emphasis as pseudo-headings, fence code
+  # blocks without a language, and mix ordered-list prefix styles.
+  MD022: false # blanks-around-headings
+  MD032: false # blanks-around-lists
+  MD036: false # no-emphasis-as-heading
+  MD040: false # fenced-code-language
+  MD029: false # ol-prefix
+  MD058: false # blanks-around-tables
+  # Raw URLs are used as links in the planning docs.
+  MD034: false # no-bare-urls
+  # The planning docs use pipe tables with ragged column widths.
+  MD060: false # table-column-style
+  # CONTRIBUTING.md mixes indented and fenced code blocks.
+  MD046: false # code-block-style
+  # src/rendergraph/shaders/README.md shows example command output in
+  # unquoted fences.
+  MD014: false # commands-show-output

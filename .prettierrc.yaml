@@ -1,0 +1,16 @@
+# Prettier is applied to *.d.ts and *.y?ml files only (see the `files:` filter
+# in .pre-commit-config.yaml), so this config encodes the two styles used in
+# this tree:
+#   - *.y?ml (GitHub workflows, .pre-commit-config.yaml, flatpak manifests):
+#     2-space indentation, double quotes (existing tree style, verified with
+#     `prettier --check` over every tracked yaml/yml file).
+#   - res/controllers/*.d.ts (first-party API type stubs): 4-space indent,
+#     long single lines, single-quoted strings (see override below).
+tabWidth: 2
+singleQuote: false
+overrides:
+  - files: "*.d.ts"
+    options:
+      printWidth: 180
+      tabWidth: 4
+      singleQuote: true

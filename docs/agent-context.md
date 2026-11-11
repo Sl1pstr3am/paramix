@@ -79,9 +79,9 @@ auto GPU with opt-out (macOS 13+, Win10 21H2+, Ubuntu 22.04+/Fedora 39+); ALAC d
 | Dotfiles present (`.clang-format`, `.clang-tidy`, `.gitignore`, `.gitattributes`, `.pre-commit-config.yaml`) | **done** |
 | `.github/workflows/ci.yml` functional | **fixed** (phantom `-DQT6=ON` removed, `WARNINGS_FATAL` dropped, timeouts + ccache added, PEP 668 tolerated) |
 | Repo hygiene (`.DS_Store`, ignore rules) | **done** |
-| Pre-commit suite usable | **in progress** — missing root configs (`.codespellignore`, `.codespellignorelines`, `.cmakelintrc`, `.gersemirc`, `.prettierrc.yaml`, `.markdownlint-cli2.yaml`) and `no-commit-to-branch` blocking `main` |
-| Local verification harness | **in progress** — `tools/paramix_verify.sh`, `tools/paramix_bootstrap.sh`, `docs/baseline-local-verification.md` |
-| CI actually green on 4 targets | **blocked** — GitHub Actions queues every run with no runner assigned (see §5) |
+| Pre-commit suite usable | **done** — missing root configs added (`.codespellignore`, `.codespellignorelines`, `.cmakelintrc`, `.gersemirc`, `.prettierrc.yaml`, `.markdownlint-cli2.yaml`); `no-commit-to-branch` no longer blocks `main`. `black`/`flake8` hooks need Python ≥3.10 (local 3.9 can't build them; CI 3.12 can) |
+| Local verification harness | **done** — `tools/paramix_verify.sh` (6 checks, PASS/SKIP/FAIL), `tools/paramix_bootstrap.sh` (dry-run by default, `--yes` to install), `docs/baseline-local-verification.md` |
+| CI actually green on 4 targets | **in progress** — runs now execute; `checks` whitespace bug fixed (shallow-clone `HEAD` has no parent, so `git show --check HEAD` flagged the whole import; now `git diff --check HEAD^ HEAD` with `fetch-depth: 2`) |
 
 ### 3.4 Feature work
 **Not started.** Verified absent: `src/stems/`, `SoundSourceStemCache`, `BeatGrid-3.0`,
@@ -116,36 +116,39 @@ auto GPU with opt-out (macOS 13+, Win10 21H2+, Ubuntu 22.04+/Fedora 39+); ALAC d
 
 ## 5. Known blockers and gotchas
 
-1. **GitHub Actions does not schedule jobs.** Runs reach `queued` (jobs exist, `runner_name`
-   null) and never start, including `workflow_dispatch`. GitHub status is operational. Repo was
-   made public to unlock free minutes; jobs appeared only after that but still never started.
-   Suspects, in order: stale queued runs holding the concurrency group
-   `ci-CI-refs/heads/main`; account-level Actions restriction; `cancel-in-progress` failing to
-   cancel the stuck runs. **Next diagnostic:** change/remove the `concurrency` group, or cancel
-   the three stale runs via the REST API, then dispatch a fresh run.
-2. **`-DQT6=ON` is not a CMake option** in this tree (Qt 6 is mandatory). The real switch is
+1. **GitHub Actions runner acquisition is very slow (first-run cold start).** Runs sat in
+   `queued` with jobs created but no runner for ~8–10 minutes after the repo was made public;
+   then runners appeared and jobs executed. This is no longer a blocker — but expect several
+   minutes of latency before a run starts. Runs from 20:22/20:26 that predate the visibility
+   change may remain permanently queued; ignore them.
+2. **Whitespace gate was wrong and is fixed.** `git show --check HEAD` flagged the imported
+   Mixxx tree's pre-existing trailing whitespace on every run. The workflow now runs
+   `git diff --check HEAD^ HEAD`, so only the pushed commit is gated.
+3. **`-DQT6=ON` is not a CMake option** in this tree (Qt 6 is mandatory). The real switch is
    `QML` (`cmake_dependent_option`, CMakeLists.txt:2357). `WARNINGS_FATAL` (CMakeLists.txt:2210)
    defaults OFF — do not turn it on for the baseline.
-3. **macOS/Windows buildenv env propagation** is handled by the buildenv scripts writing to
+4. **macOS/Windows buildenv env propagation** is handled by the buildenv scripts writing to
    `$GITHUB_ENV` themselves; no cross-step `source` needed.
-4. macOS x86_64 CI builds with `-DQML=OFF` (carried over). This is a **gap** against decision 6
+5. macOS x86_64 CI builds with `-DQML=OFF` (carried over). This is a **gap** against decision 6
    (QML skin is default); revisit once CI runs.
-5. No local compiler toolchain beyond Apple clang: **any "build is green" claim must come from
+6. No local compiler toolchain beyond Apple clang: **any "build is green" claim must come from
    CI**, not from this machine, until Qt is installed.
-6. `docs/old-context.md` is a raw chat transcript (≈1,267 lines, mostly UI padding). Use it only
+7. `docs/old-context.md` is a raw chat transcript (≈1,267 lines, mostly UI padding). Use it only
    for historical intent; the plan document is authoritative.
+8. `concurrency: cancel-in-progress: true` works: a new push cancels the previous run's jobs,
+   which can look like a spurious "cancelled" status.
 
 ---
 
 ## 6. Phase −1 remaining work (in priority order)
 
-1. Get Actions to schedule a run; confirm `checks` + `Linux x64` first, then the three builds.
-2. Land the pre-commit repairs (missing configs, unblock `main`) and prove idempotent runs.
-3. Land `tools/paramix_verify.sh` + `tools/paramix_bootstrap.sh` and record a real passing
-   output in `docs/baseline-local-verification.md`.
-4. Write `docs/baseline-report.md`: baseline commit, toolchain versions, CI evidence (or the
+1. **Watch CI to green on all four targets.** `checks` + `Linux x64` first (Linux also runs
+   `ctest`), then macOS arm64, macOS x86_64, Windows x64. Diagnose failures from job logs:
+   `gh run view --log --job <job-id> -R Sl1pstr3am/paramix`.
+2. Revisit the macOS x86_64 `-DQML=OFF` gap once the first build is green.
+3. Write `docs/baseline-report.md`: baseline commit, toolchain versions, CI evidence (or the
    documented gap), and the exact gate status per target.
-5. Then Phase 0: ADRs 001–005, plus the five spikes in plan §7.3
+4. Then Phase 0: ADRs 001–005, plus the five spikes in plan §7.3
    (ONNX htdemucs_ft benchmark, Beat This! F-measure, 8-ch FLAC round-trip, 4-lane 60 fps
    prototype, GitHub Releases model-download dry run).
 
@@ -202,3 +205,13 @@ Shared single-owner files (route through A0): `CMakeLists.txt`, `res/schema.xml`
   compatible, `.gitattributes` does not normalise binary fixtures, `/models/` and `/stems/`
   root-anchored and effective). Pre-commit suite identified as broken (missing 6 root configs,
   `no-commit-to-branch` blocks `main`).
+- **2026-11-11** — `55c4b11`: whitespace gate scoped to the tip commit; `actions/checkout@v5`.
+- **2026-11-11** — `c41bb96`: `fetch-depth: 2` on the checks job (a shallow `HEAD` has no
+  parent, which is why `git show --check HEAD` flagged the entire import).
+- **2026-11-11** — Pre-commit repaired: six root configs added, codespell scoped away from
+  vendored `res/controllers` and `res/translations`, `no-commit-to-branch` retargeted to
+  semver release branches. All fixer hooks verified idempotent (two passes each, zero diffs).
+  One real first-party typo remains unsuppressed: "Windos" in `docs/old-context.md` (kept as an
+  exact-line exclusion with a FIXME; fix the doc, then delete the entry).
+- **2026-11-11** — Local harness landed: `tools/paramix_verify.sh` reports PASS with one SKIP
+  (clang-format) on a clean tree; its whitespace check was aligned with CI semantics.

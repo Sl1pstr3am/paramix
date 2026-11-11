@@ -48,8 +48,10 @@ repos:
       - id: trailing-whitespace
         exclude: \.(c|cc|cxx|cpp|ts|frag|glsl|h|hpp|hxx|ih|ispc|ipp|java|js|m|mm|proto|tsv|vert)$
       - id: no-commit-to-branch
-        # protect main and any branch that has a semver-like name
-        args: [-b, main, -p, '^\d+\.\d+(?:\.\d+)?$']
+        # Fork policy: this fork develops directly on its default branch
+        # (`main`), so committing there is intentionally allowed. We still
+        # protect semver-like release branch names (e.g. `2.7`).
+        args: [-p, '^\d+\.\d+(?:\.\d+)?$']
   - repo: https://github.com/codespell-project/codespell
     rev: v2.4.3
     hooks:
@@ -64,7 +66,12 @@ repos:
             "\\W(?:m_p*(?=[A-Z])|m_(?=\\w)|pp*(?=[A-Z])|k(?=[A-Z])|s_(?=\\w))",
             --write-changes,
           ]
-        exclude: ^(packaging/wix/LICENSE.rtf.in|src/dialog/dlgabout\.cpp|res/linux/org\.mixxx\.Mixxx\.desktop|.*\.(?:pot?|(?<!\.d\.)ts|wxl|svg))$
+        # Scoped to first-party content: lib/ is excluded globally below,
+        # res/controllers/ holds vendored/vendor-supplied scripts and API
+        # stubs, res/translations/ holds Launchpad-imported strings. This
+        # keeps .codespellignore small and still covers src/, res/qml/,
+        # res/skins/, docs/, cmake/, packaging/, tools/.
+        exclude: ^(packaging/wix/LICENSE.rtf.in|src/dialog/dlgabout\.cpp|res/linux/org\.mixxx\.Mixxx\.desktop|res/(?:controllers|translations)/|.*\.(?:pot?|(?<!\.d\.)ts|wxl|svg))$
   - repo: https://github.com/pre-commit/mirrors-eslint
     rev: v10.11.0
     hooks:

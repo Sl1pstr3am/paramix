@@ -1,0 +1,5 @@
+# gersemi configuration for this tree.
+# The existing cmake/*.cmake files (54 vendored/project Find*.cmake modules)
+# are indented with 2 spaces; keep that style instead of gersemi's default 4.
+# Output of `gersemi --print-config default` can be placed here verbatim.
+indent: 2

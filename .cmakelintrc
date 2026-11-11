@@ -1,0 +1,12 @@
+# cmakelint configuration (see `cmakelint --help`; only "filter=" is supported).
+# Disabled rules (verified by running cmakelint over this tree's CMake files):
+#   linelength           - root CMakeLists.txt and several Find*.cmake modules
+#                          already contain lines longer than 80 chars.
+#   convention/filename  - vendored Find modules keep their upstream-cased
+#                          filenames (FindDjInterop.cmake, FindEbur128.cmake,
+#                          FindLibudev.cmake, ...); renaming would break
+#                          find_package() calls.
+#   package/stdargs      - those same modules define case-preserved package
+#                          variables (${Chromaprint}_INCLUDE_DIR, ...).
+# All other cmakelint rules remain active.
+filter=-linelength,-convention/filename,-package/stdargs

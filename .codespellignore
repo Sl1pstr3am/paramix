@@ -1,0 +1,49 @@
+# Curated codespell ignore list for the Paramix fork.
+# Every entry is a false positive observed on this tree: identifiers, person/
+# vendor names, acronyms, or established DSP/DJ vocabulary. Genuine English
+# typos in first-party code are NOT listed here; they are tracked as fixes.
+#
+# --- Technical / library / format names -----------------------------------
+# sord: Sord RDF library (used by lilv/LV2), see cmake/modules/Findsord.cmake
+sord
+# caf/CAF: Core Audio Format container
+caf
+# SHS: NIST "Secure Hash Standard" acronym (src/util/cache.cpp)
+SHS
+# udo: Csound user-defined-opcode source, "udo/cache/moogladder.udo" URL
+# (src/engine/filters/enginefiltermoogladder4.h)
+udo
+# IIF: identifier/comment in the adopted Moog ladder filter port
+IIF
+# Technics: DJ turntable brand (res/qml Settings, dlgprefdeck.cpp)
+Technics
+# acapella: common DJ/music vocabulary in the fork's planning docs
+acapella
+# fo: test string value ("foo" chopped to "fo") in channelhandle_test.cpp
+fo
+
+# --- Identifiers (camelCase symbols and values, not prose) ----------------
+InOut
+bufferIn
+ReflectIn
+indexIn
+assignIn
+forIn
+reLatin
+allLocations
+allRight
+leadIn
+doubleClick
+pass-thru
+pre-select
+pre-selected
+
+# --- Person/vendor names (usernames, authors, emails) ---------------------
+# github.com/codders/libshout, quoted in enginenetworkstream.cpp
+codders
+# Max Linke, past manpage/maintainer credit
+Linke
+# "jus" <s.brandt@mixxx.org>, skin copyright + tools/json2github.py handle
+jus
+# Free Ekanayaka <freee@debian.org>, historical Debian changelog
+freee
