@@ -41,7 +41,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Check for merge conflict markers
         run: |
@@ -51,7 +51,11 @@ jobs:
           fi
 
       - name: Check whitespace errors
-        run: git show --check --format= HEAD
+        # Only the tip commit is checked. The imported Mixxx tree contains
+        # pre-existing trailing whitespace, so checking the whole tree (or the
+        # import commit itself) would always fail for reasons unrelated to the
+        # change under test.
+        run: git diff --check HEAD^ HEAD
 
       - name: Validate YAML and JSON
         # pip may refuse to install into the externally managed system
@@ -90,7 +94,7 @@ jobs:
     timeout-minutes: 75
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 1
 
@@ -154,7 +158,7 @@ jobs:
     timeout-minutes: 90
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 1
 
@@ -218,7 +222,7 @@ jobs:
     timeout-minutes: 90
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 1
 
@@ -276,7 +280,7 @@ jobs:
     timeout-minutes: 90
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 1
 
