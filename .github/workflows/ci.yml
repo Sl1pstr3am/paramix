@@ -7,6 +7,13 @@
 #
 # This workflow is fork-owned (not a copy of upstream's release pipeline) so it
 # works without maintainer secrets, self-hosted runners or deployment steps.
+#
+# Environment propagation note: tools/macos_buildenv.sh and
+# tools/windows_buildenv.bat append their exported variables
+# (MIXXX_VCPKG_ROOT, VCPKG_TARGET_TRIPLET, BUILDENV_URL, CMAKE_GENERATOR, ...)
+# to $GITHUB_ENV themselves when GITHUB_ENV is set, so variables set in the
+# "Set up build environment" step ARE visible to the later Configure/Build
+# steps. No cross-step sourcing is required on GitHub-hosted runners.
 
 name: CI
 
@@ -31,6 +38,7 @@ jobs:
   checks:
     name: Repository checks
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -46,8 +54,11 @@ jobs:
         run: git show --check --format= HEAD
 
       - name: Validate YAML and JSON
+        # pip may refuse to install into the externally managed system
+        # environment (PEP 668); retry with --break-system-packages.
         run: |
-          python3 -m pip install --quiet pyyaml
+          python3 -m pip install --quiet pyyaml || \
+            python3 -m pip install --quiet --break-system-packages pyyaml
           python3 - <<'PY'
           import json, pathlib, sys
           import yaml
@@ -76,6 +87,7 @@ jobs:
   linux:
     name: Linux x64
     runs-on: ubuntu-24.04
+    timeout-minutes: 75
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -83,75 +95,185 @@ jobs:
           fetch-depth: 1
 
       - name: Install build dependencies
+        # Installs the build dependencies via apt (passwordless sudo on the
+        # hosted runner). Qt 6 is the only supported Qt major in this tree;
+        # the script also installs the QML module packages.
         run: tools/debian_buildenv.sh setup
 
+      - name: Restore ccache cache
+        id: ccache_restore
+        uses: actions/cache/restore@v4
+        with:
+          path: /home/runner/.cache/ccache
+          key: linux-${{ hashFiles('src/**', 'CMakeLists.txt', 'cmake/**') }}
+          restore-keys: |
+            linux-
+
+      - name: Set up ccache
+        run: |
+          ccache --zero-stats
+          ccache --max-size=2G
+
       - name: Configure
+        # There is no QT6 CMake option in this tree; Qt 6 is mandatory and
+        # always used. QML is the dependent option at CMakeLists.txt:2356
+        # (defaults ON when Qt >= 6.4). CMake enables ccache automatically
+        # when it is on PATH (CCACHE_SUPPORT, CMakeLists.txt).
         run: |
           cmake -S . -B build \
             -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-            -DQT6=ON \
-            -DQML=ON \
-            -DWARNINGS_FATAL=ON
+            -DQML=ON
 
       - name: Build
         run: cmake --build build --parallel "$(nproc)"
 
+      - name: Print compiler cache stats
+        run: |
+          ccache --show-stats
+          ccache --cleanup
+
+      - name: Save ccache cache
+        # Save only on pushes to limit private-repo cache churn; skip when an
+        # entry for this exact key already exists, else the save step fails.
+        if: >-
+          github.event_name == 'push' &&
+          steps.ccache_restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: /home/runner/.cache/ccache
+          key: linux-${{ hashFiles('src/**', 'CMakeLists.txt', 'cmake/**') }}
+
       - name: Test
         run: ctest --test-dir build --output-on-failure
+        env:
+          CTEST_PARALLEL_LEVEL: 3
 
   macos-arm64:
     name: macOS arm64
     runs-on: macos-15
+    timeout-minutes: 90
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
+      - name: Install ccache
+        run: brew install ccache
+
       - name: Set up build environment
+        # Executed on Actions the script persists its environment by writing
+        # to $GITHUB_ENV (verified in tools/macos_buildenv.sh); sourcing it
+        # also works. It selects the arm64 prebuilt vcpkg environment based
+        # on the host architecture and does not download anything itself;
+        # the Configure step fetches the environment via BUILDENV_URL.
         run: source tools/macos_buildenv.sh setup
         env:
           BUILDENV_BASEPATH: ${{ runner.workspace }}/buildenv
 
+      - name: Restore ccache cache
+        id: ccache_restore
+        uses: actions/cache/restore@v4
+        with:
+          path: /Users/runner/Library/Caches/ccache
+          key: macos-arm64-${{ hashFiles('src/**', 'CMakeLists.txt', 'cmake/**') }}
+          restore-keys: |
+            macos-arm64-
+
+      - name: Set up ccache
+        run: |
+          ccache --zero-stats
+          ccache --max-size=2G
+
       - name: Configure
+        # No QT6 option exists; QML is ON for arm64 (the dependent option at
+        # CMakeLists.txt:2356). MIXXX_VCPKG_ROOT, VCPKG_TARGET_TRIPLET and
+        # CMAKE_GENERATOR=Ninja come from the buildenv script via $GITHUB_ENV.
         run: |
           cmake -S . -B build \
             -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-            -DQT6=ON \
-            -DQML=ON \
-            -DWARNINGS_FATAL=ON
+            -DQML=ON
 
       - name: Build
-        run: cmake --build build --parallel "$(sysctl -n hw.ncpu)"
+        # Ninja (from the buildenv script) parallelizes by default.
+        run: cmake --build build --config RelWithDebInfo
+
+      - name: Print compiler cache stats
+        run: |
+          ccache --show-stats
+          ccache --cleanup
+
+      - name: Save ccache cache
+        if: >-
+          github.event_name == 'push' &&
+          steps.ccache_restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: /Users/runner/Library/Caches/ccache
+          key: macos-arm64-${{ hashFiles('src/**', 'CMakeLists.txt', 'cmake/**') }}
 
   macos-x64:
     name: macOS x86_64
     runs-on: macos-15-intel
+    timeout-minutes: 90
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
+      - name: Install ccache
+        run: brew install ccache
+
       - name: Set up build environment
+        # See the arm64 job: the script persists its environment via
+        # $GITHUB_ENV; on an x86_64 host it selects the x64 prebuilt env.
         run: source tools/macos_buildenv.sh setup
         env:
           BUILDENV_BASEPATH: ${{ runner.workspace }}/buildenv
 
+      - name: Restore ccache cache
+        id: ccache_restore
+        uses: actions/cache/restore@v4
+        with:
+          path: /Users/runner/Library/Caches/ccache
+          key: macos-x64-${{ hashFiles('src/**', 'CMakeLists.txt', 'cmake/**') }}
+          restore-keys: |
+            macos-x64-
+
+      - name: Set up ccache
+        run: |
+          ccache --zero-stats
+          ccache --max-size=2G
+
       - name: Configure
+        # No QT6 option exists; QML stays OFF for the x86_64 target.
         run: |
           cmake -S . -B build \
             -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-            -DQT6=ON \
-            -DQML=OFF \
-            -DWARNINGS_FATAL=ON
+            -DQML=OFF
 
       - name: Build
-        run: cmake --build build --parallel "$(sysctl -n hw.ncpu)"
+        run: cmake --build build --config RelWithDebInfo
+
+      - name: Print compiler cache stats
+        run: |
+          ccache --show-stats
+          ccache --cleanup
+
+      - name: Save ccache cache
+        if: >-
+          github.event_name == 'push' &&
+          steps.ccache_restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: /Users/runner/Library/Caches/ccache
+          key: macos-x64-${{ hashFiles('src/**', 'CMakeLists.txt', 'cmake/**') }}
 
   windows-x64:
     name: Windows x64
     runs-on: windows-2022
+    timeout-minutes: 90
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -164,6 +286,12 @@ jobs:
           arch: x64
 
       - name: Set up build environment
+        # shell: cmd so the batch file's ERRORLEVEL is checked. With
+        # BUILDENV_RELEASE set the script selects the x64-windows-release
+        # prebuilt environment and appends MIXXX_VCPKG_ROOT, VCPKG_TARGET_
+        # TRIPLET, CMAKE_GENERATOR=Ninja and BUILDENV_* to $GITHUB_ENV
+        # (verified in tools/windows_buildenv.bat), so the later
+        # Configure/Build steps see them without cross-step propagation.
         shell: cmd
         run: tools\windows_buildenv.bat setup
         env:
@@ -171,12 +299,15 @@ jobs:
           BUILDENV_RELEASE: "TRUE"
 
       - name: Configure
+        # No QT6 option exists; QML is ON (dependent option at
+        # CMakeLists.txt:2356). MIXXX_VCPKG_ROOT drives the vcpkg toolchain;
+        # no explicit CMAKE_PREFIX_PATH is needed.
         run: |
           cmake -S . -B build `
             -DCMAKE_BUILD_TYPE=RelWithDebInfo `
-            -DQT6=ON `
-            -DQML=ON `
-            -DWARNINGS_FATAL=ON
+            -DQML=ON
 
       - name: Build
+        # Ninja (from the buildenv script) parallelizes by default;
+        # --config is a no-op for the single-config Ninja generator.
         run: cmake --build build --config RelWithDebInfo

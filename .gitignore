@@ -76,3 +76,6 @@ res/qrc_mixxx.cc
 # Paramix: locally downloaded separation models and generated stem caches
 /models/
 /stems/
+
+# Paramix: macOS Finder metadata
+.DS_Store
