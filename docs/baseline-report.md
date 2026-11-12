@@ -129,6 +129,37 @@ Notes from the run:
 - **macOS runs no tests.** Both macOS jobs build only, matching upstream. "Green" there means
   "compiles", not "passes".
 
+### Incident: truncated build environment download (`91b72cd` run)
+
+The run on `91b72cd` failed `macOS arm64` at the Configure step with a confusing
+`SHA256 checksum mismatch`, no compiler involved:
+
+```
+-- Downloading file .../mixxx-deps-2.7-arm64-osx-1c20f84a.zip
+-- [download 4% complete]
+CMake Error at CMakeLists.txt:170 (message):
+  SHA256 checksum mismatch:
+  expected: 3771ecab...
+       got: d4c3997d...
+```
+
+Cause: `CMakeLists.txt:147-160` calls `file(DOWNLOAD ...)` **without a `STATUS` check**, so a
+transfer cut short at 4% is not reported as a network error; the only symptom is the checksum
+gate, which reads as if the published artifact were wrong. It was not — the download was
+incomplete.
+
+Fix: each desktop job now pre-fetches the archive with `curl --retry 5 --retry-all-errors` into a
+`<name>.zip.part`, verifies the SHA-256 itself, and only then moves it to `<name>.zip`. CMake
+skips its download when that file exists (`CMakeLists.txt:147`) and still runs its own checksum
+gate, so resilience is added without weakening verification. A truncated transfer now fails with a
+network error message at the pre-fetch step, and a retry is attempted instead of the job dying.
+The pre-fetch derives the archive name from `BUILDENV_URL` because the Windows buildenv script
+does not export `BUILDENV_NAME` into `$GITHUB_ENV`.
+
+Verified locally against a stub HTTP server: correct hash → exit 0, zip in place; wrong hash →
+exit 1 with `::error::buildenv checksum mismatch` and no final zip; unreachable host → exit 7
+after retries.
+
 ---
 
 ## 5. Known gaps carried into Phase 0

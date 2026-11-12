@@ -267,6 +267,18 @@ Shared single-owner files (route through A0): `CMakeLists.txt`, `res/schema.xml`
   `/Users/christianstuart/.local/share/opencode/worktree/83d739/stem-waveform`, cut from
   `18c817b`. It exists so feature work cannot entangle the baseline commit; it needs rebasing
   onto `main` before use.
+- **2026-11-11** — **Inventory finding:** the imported tree already contains a stem playback and
+  visualization layer — `allshader::WaveformRendererStem` (split stem tracks, per-stem gain/mute,
+  stack reorder, opacity), its QML wrapper `WaveformRendererStem`, `res/qml/StemKnob.qml`,
+  `res/qml/Deck/HotcueAndStem.qml`, LateNight stem controls, per-stem waveform data in
+  `WaveformData::stems[mixxx::kMaxSupportedStems]` filled by `AnalyzerWaveform` from the
+  8-channel stem source, and `.stem.mp4` reading via `StemInfoImporter`/`SoundSourceStem` with
+  ALAC and AAC fixtures. What does **not** exist: any stem *separation* and any `.stem.mp4`
+  *write/export* path. Do not plan Phase 2/3 as if the stem UI were greenfield.
+- **2026-11-11** — CI incident on `91b72cd`: `macOS arm64` failed in Configure because the 3.7 GB
+  buildenv download truncated at 4% and `file(DOWNLOAD)` has no `STATUS` check, so the only
+  symptom was `SHA256 checksum mismatch`. Added a pre-fetch step (curl retries + own hash check +
+  `.part` rename) to both macOS jobs and the Windows job; `CMakeLists.txt` is untouched.
 - **2026-11-11** — GitHub owner renamed `Sl1pstr3am` → **`christianstuart`**. Updated the git
   remote, README badges/links/clone URL, and every `gh`/repository reference in the plan,
   context doc and baseline report. `docs/old-context.md` intentionally left as historical record.

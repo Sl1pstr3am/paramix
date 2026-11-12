@@ -247,6 +247,35 @@ jobs:
         env:
           BUILDENV_BASEPATH: ${{ runner.workspace }}/buildenv
 
+      - name: Pre-fetch build environment
+        # downloads.mixxx.org is an external single point of failure and
+        # CMake's file(DOWNLOAD) has no STATUS check, so a truncated transfer
+        # surfaces only as a confusing "SHA256 checksum mismatch". Run
+        # 43133838143 stopped at 4% exactly this way. Fetch with retries into
+        # a .part file, verify, then move into place: CMake skips its own
+        # download when the zip exists (CMakeLists.txt:147) and still runs its
+        # checksum gate, so this adds resilience without weakening it.
+        run: |
+          set -euo pipefail
+          mkdir -p "${BUILDENV_BASEPATH}"
+          name="$(basename "${BUILDENV_URL}")"
+          zip="${BUILDENV_BASEPATH}/${name}"
+          part="${zip}.part"
+          curl -fL --retry 5 --retry-delay 15 --retry-all-errors \
+            --connect-timeout 30 --progress-bar -o "${part}" "${BUILDENV_URL}"
+          actual="$(shasum -a 256 "${part}" | cut -d' ' -f1)"
+          if [ "${actual}" != "${BUILDENV_SHA256}" ]; then
+            echo "::error::buildenv checksum mismatch: expected ${BUILDENV_SHA256}, got ${actual}"
+            exit 1
+          fi
+          mv "${part}" "${zip}"
+          {
+            echo "### Build environment"
+            echo ""
+            echo "- archive: \`${name}\`"
+            echo "- sha256: \`${actual}\`"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
       - name: Restore ccache cache
         id: ccache_restore
         uses: actions/cache/restore@v4
@@ -310,6 +339,35 @@ jobs:
         run: source tools/macos_buildenv.sh setup
         env:
           BUILDENV_BASEPATH: ${{ runner.workspace }}/buildenv
+
+      - name: Pre-fetch build environment
+        # downloads.mixxx.org is an external single point of failure and
+        # CMake's file(DOWNLOAD) has no STATUS check, so a truncated transfer
+        # surfaces only as a confusing "SHA256 checksum mismatch". Run
+        # 43133838143 stopped at 4% exactly this way. Fetch with retries into
+        # a .part file, verify, then move into place: CMake skips its own
+        # download when the zip exists (CMakeLists.txt:147) and still runs its
+        # checksum gate, so this adds resilience without weakening it.
+        run: |
+          set -euo pipefail
+          mkdir -p "${BUILDENV_BASEPATH}"
+          name="$(basename "${BUILDENV_URL}")"
+          zip="${BUILDENV_BASEPATH}/${name}"
+          part="${zip}.part"
+          curl -fL --retry 5 --retry-delay 15 --retry-all-errors \
+            --connect-timeout 30 --progress-bar -o "${part}" "${BUILDENV_URL}"
+          actual="$(shasum -a 256 "${part}" | cut -d' ' -f1)"
+          if [ "${actual}" != "${BUILDENV_SHA256}" ]; then
+            echo "::error::buildenv checksum mismatch: expected ${BUILDENV_SHA256}, got ${actual}"
+            exit 1
+          fi
+          mv "${part}" "${zip}"
+          {
+            echo "### Build environment"
+            echo ""
+            echo "- archive: \`${name}\`"
+            echo "- sha256: \`${actual}\`"
+          } >> "${GITHUB_STEP_SUMMARY}"
 
       - name: Restore ccache cache
         id: ccache_restore
@@ -376,6 +434,34 @@ jobs:
         env:
           BUILDENV_BASEPATH: C:\buildenv
           BUILDENV_RELEASE: "TRUE"
+
+      - name: Pre-fetch build environment
+        # Same external-dependency exposure as the macOS jobs: CMake downloads
+        # the prebuilt vcpkg environment itself and only notices a truncated
+        # transfer via the SHA256 gate. curl.exe ships with the image and
+        # supports real retries, unlike Invoke-WebRequest which buffers the
+        # whole archive in memory.
+        shell: pwsh
+        run: |
+          $dir = $env:BUILDENV_BASEPATH
+          New-Item -ItemType Directory -Force -Path $dir | Out-Null
+          $name = Split-Path -Leaf $env:BUILDENV_URL
+          $zip = Join-Path $dir $name
+          $part = "$zip.part"
+          curl.exe -fL --retry 5 --retry-delay 15 --retry-all-errors `
+            --connect-timeout 30 -o $part $env:BUILDENV_URL
+          if ($LASTEXITCODE -ne 0) {
+            throw "buildenv download failed (curl exit $LASTEXITCODE)"
+          }
+          $actual = (Get-FileHash -Algorithm SHA256 -Path $part).Hash.ToLower()
+          $expected = $env:BUILDENV_SHA256.ToLower()
+          if ($actual -ne $expected) {
+            throw "buildenv checksum mismatch: expected $expected, got $actual"
+          }
+          Move-Item -Force $part $zip
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value @(
+            "### Build environment", "", "- archive: ``$name``", "- sha256: ``$actual``"
+          )
 
       - name: Configure
         # No QT6 option exists; QML is ON (dependent option at
