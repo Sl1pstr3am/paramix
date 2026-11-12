@@ -37,6 +37,6 @@ Rectangle {
     Text {
         anchors.centerIn: parent
         color: 'white'
-        text: "PreviewDeck placeholder"
+        text: qsTr("PreviewDeck placeholder")
     }
 }

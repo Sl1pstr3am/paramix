@@ -8,5 +8,5 @@ Skin.ControlButton {
 
     activeColor: Theme.deckActiveColor
     key: "cue_default"
-    text: "Cue"
+    text: qsTr("Cue")
 }

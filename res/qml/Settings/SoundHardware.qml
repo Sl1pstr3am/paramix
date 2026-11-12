@@ -146,7 +146,7 @@ Category {
         manager.commit();
     }
 
-    label: "Sound hardware"
+    label: qsTr("Sound hardware")
     tabs: ["engine", "delays", "stats"]
 
     Component.onCompleted: {
@@ -216,7 +216,7 @@ Category {
                 Mixxx.SettingGroup {
                     anchors.left: parent.left
                     anchors.right: parent.right
-                    label: "Engine"
+                    label: qsTr("Engine")
                     visible: root.selectedIndex == 0
 
                     onActivated: {
@@ -239,10 +239,10 @@ Category {
                                     Layout.fillWidth: true
                                     color: Theme.white
                                     font.pixelSize: 14
-                                    text: "Main Mix"
+                                    text: qsTr("Main Mix")
 
                                     Mixxx.SettingParameter {
-                                        label: "Main Mix"
+                                        label: qsTr("Main Mix")
                                     }
                                 }
                                 RatioChoice {
@@ -261,10 +261,10 @@ Category {
                                     Layout.fillWidth: true
                                     color: Theme.white
                                     font.pixelSize: 14
-                                    text: "Main Output Mode"
+                                    text: qsTr("Main Output Mode")
 
                                     Mixxx.SettingParameter {
-                                        label: "Main Output Mode"
+                                        label: qsTr("Main Output Mode")
                                     }
                                 }
                                 RatioChoice {
@@ -284,10 +284,10 @@ Category {
                                     Layout.fillWidth: true
                                     color: Theme.white
                                     font.pixelSize: 14
-                                    text: "Sound Clock"
+                                    text: qsTr("Sound Clock")
 
                                     Mixxx.SettingParameter {
-                                        label: "Sound Clock"
+                                        label: qsTr("Sound Clock")
                                     }
                                 }
                                 RatioChoice {
@@ -306,7 +306,7 @@ Category {
                                     Layout.fillWidth: true
                                     color: Theme.white
                                     font.pixelSize: 14
-                                    text: "Keylock engine"
+                                    text: qsTr("Keylock engine")
                                 }
                                 RatioChoice {
                                     id: keylock
@@ -344,7 +344,7 @@ Category {
                                     }
 
                                     Mixxx.SettingParameter {
-                                        label: "Keylock engine"
+                                        label: qsTr("Keylock engine")
                                     }
                                 }
                             }
@@ -357,7 +357,7 @@ Category {
                                     Layout.fillWidth: true
                                     color: Theme.white
                                     font.pixelSize: 14
-                                    text: "Sound API"
+                                    text: qsTr("Sound API")
                                 }
                                 RatioChoice {
                                     id: soundApi
@@ -372,7 +372,7 @@ Category {
                                     }
 
                                     Mixxx.SettingParameter {
-                                        label: "Sound API"
+                                        label: qsTr("Sound API")
                                     }
                                 }
                             }
@@ -381,10 +381,10 @@ Category {
                                     Layout.fillWidth: true
                                     color: Theme.white
                                     font.pixelSize: 14
-                                    text: "Sample Rate"
+                                    text: qsTr("Sample Rate")
 
                                     Mixxx.SettingParameter {
-                                        label: "Sample Rate"
+                                        label: qsTr("Sample Rate")
                                     }
                                 }
                                 RatioChoice {
@@ -420,10 +420,10 @@ Category {
                                     Layout.fillWidth: true
                                     color: Theme.white
                                     font.pixelSize: 14
-                                    text: "Audio Buffer"
+                                    text: qsTr("Audio Buffer")
 
                                     Mixxx.SettingParameter {
-                                        label: "Audio Buffer"
+                                        label: qsTr("Audio Buffer")
                                     }
                                 }
                                 Skin.ComboBox {
@@ -459,10 +459,10 @@ Category {
                                     color: Theme.white
                                     font.pixelSize: 14
                                     opacity: Mixxx.SoundManager.hasMicInputs() ? 1.0 : 0.5
-                                    text: "Microphone Monitor Mode"
+                                    text: qsTr("Microphone Monitor Mode")
 
                                     Mixxx.SettingParameter {
-                                        label: "Microphone Monitor Mode"
+                                        label: qsTr("Microphone Monitor Mode")
                                     }
                                 }
                                 Skin.ComboBox {
@@ -470,7 +470,7 @@ Category {
 
                                     clip: true
                                     font.pixelSize: 12
-                                    model: ["Main output only", "Main and booth outputs", "Direct monitor (recording and broadcasting only)"]
+                                    model: [qsTr("Main output only"), qsTr("Main and booth outputs"), qsTr("Direct monitor (recording and broadcasting only)")]
                                     opacity: enabled ? 1.0 : 0.5
                                     spacing: 2
 
@@ -485,7 +485,7 @@ Category {
                 Mixxx.SettingGroup {
                     anchors.left: parent.left
                     anchors.right: parent.right
-                    label: "Delays"
+                    label: qsTr("Delays")
                     visible: root.selectedIndex == 1
 
                     onActivated: {
@@ -507,10 +507,10 @@ Category {
                             color: Theme.white
                             font.pixelSize: 14
                             opacity: enabled ? 1 : 0.5
-                            text: "Main Output"
+                            text: qsTr("Main Output")
 
                             Mixxx.SettingParameter {
-                                label: "Main Output"
+                                label: qsTr("Main Output")
                             }
                         }
                         Skin.Slider {
@@ -533,10 +533,10 @@ Category {
                             enabled: boothEnabled.value
                             font.pixelSize: 14
                             opacity: enabled ? 1 : 0.5
-                            text: "Booth Output"
+                            text: qsTr("Booth Output")
 
                             Mixxx.SettingParameter {
-                                label: "Booth Output"
+                                label: qsTr("Booth Output")
                             }
                         }
                         Skin.Slider {
@@ -561,10 +561,10 @@ Category {
                             enabled: headEnabled.value
                             font.pixelSize: 14
                             opacity: enabled ? 1 : 0.5
-                            text: "Headphone Output"
+                            text: qsTr("Headphone Output")
 
                             Mixxx.SettingParameter {
-                                label: "Headphone Output"
+                                label: qsTr("Headphone Output")
                             }
                         }
                         Skin.Slider {
@@ -584,7 +584,7 @@ Category {
                     }
                 }
                 Mixxx.SettingGroup {
-                    label: "Stats"
+                    label: qsTr("Stats")
                     visible: root.selectedIndex == 2
 
                     onActivated: {
@@ -592,7 +592,7 @@ Category {
                     }
 
                     Mixxx.SettingParameter {
-                        label: "A white square"
+                        label: qsTr("A white square")
 
                         Rectangle {
                             color: 'white'
@@ -607,7 +607,7 @@ Category {
                 Layout.fillWidth: true
                 Layout.minimumHeight: Math.max(router.mode == AudioRouter.Mode.Advanced ? 450 : 250, scrollView.height - tabSection.height - buttons.height - 15)
                 Layout.minimumWidth: Math.max(600, scrollView.width)
-                label: "Router"
+                label: qsTr("Router")
 
                 AudioRouter {
                     id: router
@@ -640,7 +640,7 @@ Category {
                     backgroundColor: "#7D3B3B"
                     enabled: !root.committing
                     opacity: enabled ? 1.0 : 0.5
-                    text: "Cancel"
+                    text: qsTr("Cancel")
                     visible: root.hasChanges
 
                     onPressed: {
@@ -663,7 +663,7 @@ Category {
                     backgroundColor: root.hasChanges ? "#3a60be" : Theme.darkGray3
                     enabled: root.hasChanges && !root.committing
                     opacity: enabled ? 1.0 : 0.5
-                    text: "Save"
+                    text: qsTr("Save")
 
                     onPressed: {
                         errorMessage.text = "";

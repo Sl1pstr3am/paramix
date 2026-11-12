@@ -131,7 +131,7 @@ Category {
         loadInterface();
     }
 
-    label: "Interface"
+    label: qsTr("Interface")
     selectedIndex: 0
     tabs: ["theme & color", "decks"]
 
@@ -182,7 +182,7 @@ Category {
             property bool dirty: false
 
             anchors.fill: parent
-            label: "Theme & Color"
+            label: qsTr("Theme & Color")
             visible: root.selectedIndex == 0
 
             onActivated: {
@@ -209,7 +209,7 @@ Category {
                         RowLayout {
                             Mixxx.SettingParameter {
                                 Layout.fillWidth: true
-                                label: "Skin"
+                                label: qsTr("Skin")
 
                                 Text {
                                     color: Theme.white
@@ -220,7 +220,7 @@ Category {
                             Skin.ComboBox {
                                 id: skinInput
 
-                                model: ["Unnamed"]
+                                model: [qsTr("Unnamed")]
 
                                 onCurrentIndexChanged: themeColorTab.dirty = true
                             }
@@ -228,7 +228,7 @@ Category {
                         RowLayout {
                             Mixxx.SettingParameter {
                                 Layout.fillWidth: true
-                                label: "Color"
+                                label: qsTr("Color")
 
                                 Text {
                                     color: Theme.white
@@ -239,7 +239,7 @@ Category {
                             Skin.ComboBox {
                                 id: colorInput
 
-                                model: ["Dark", "Light"]
+                                model: [qsTr("Dark"), qsTr("Light")]
 
                                 onCurrentIndexChanged: themeColorTab.dirty = true
                             }
@@ -247,7 +247,7 @@ Category {
                         RowLayout {
                             Mixxx.SettingParameter {
                                 Layout.fillWidth: true
-                                label: "Layout"
+                                label: qsTr("Layout")
 
                                 Text {
                                     color: Theme.white
@@ -258,7 +258,7 @@ Category {
                             Skin.ComboBox {
                                 id: layoutInput
 
-                                model: ["Performance", "Broadcast"]
+                                model: [qsTr("Performance"), qsTr("Broadcast")]
 
                                 onCurrentIndexChanged: themeColorTab.dirty = true
                             }
@@ -266,7 +266,7 @@ Category {
                         RowLayout {
                             Mixxx.SettingParameter {
                                 Layout.fillWidth: true
-                                label: "Tool tips"
+                                label: qsTr("Tool tips")
 
                                 Text {
                                     color: Theme.white
@@ -285,7 +285,7 @@ Category {
                         RowLayout {
                             Mixxx.SettingParameter {
                                 Layout.fillWidth: true
-                                label: "Disable screen saver"
+                                label: qsTr("Disable screen saver")
 
                                 Text {
                                     color: Theme.white
@@ -304,7 +304,7 @@ Category {
                         RowLayout {
                             Mixxx.SettingParameter {
                                 Layout.fillWidth: true
-                                label: "Start in full-screen mode"
+                                label: qsTr("Start in full-screen mode")
 
                                 Text {
                                     color: Theme.white
@@ -331,7 +331,7 @@ Category {
                                 Mixxx.SettingParameter {
                                     Layout.fillWidth: true
                                     height: 14
-                                    label: "Auto-hide the menu bar"
+                                    label: qsTr("Auto-hide the menu bar")
 
                                     Text {
                                         color: Theme.white
@@ -344,7 +344,7 @@ Category {
                                     font.italic: true
                                     font.pixelSize: 12
                                     font.weight: Font.Thin
-                                    text: "Toggle it with a single Alt key press"
+                                    text: qsTr("Toggle it with a single Alt key press")
                                 }
                             }
                             RatioChoice {
@@ -373,7 +373,7 @@ Category {
                                 anchors.bottom: parent.bottom
                                 anchors.bottomMargin: 20
                                 anchors.horizontalCenter: parent.horizontalCenter
-                                text: "Customize"
+                                text: qsTr("Customize")
                                 width: 80
                             }
                         }
@@ -384,7 +384,7 @@ Category {
                     Layout.fillWidth: true
                     Layout.topMargin: 40
                     implicitHeight: libraryColumn.height
-                    label: "Library"
+                    label: qsTr("Library")
 
                     Column {
                         id: libraryColumn
@@ -396,7 +396,7 @@ Category {
                             color: Theme.white
                             font.pixelSize: 14
                             font.weight: Font.DemiBold
-                            text: "Library"
+                            text: qsTr("Library")
                         }
                         Item {
                             anchors.left: parent.left
@@ -427,7 +427,7 @@ Category {
                                     Mixxx.SettingParameter {
                                         Layout.fillWidth: true
                                         implicitWidth: searchCompletionText.implicitWidth
-                                        label: "Search completion"
+                                        label: qsTr("Search completion")
 
                                         Text {
                                             id: searchCompletionText
@@ -458,7 +458,7 @@ Category {
                                     Mixxx.SettingParameter {
                                         Layout.fillWidth: true
                                         implicitWidth: searchHistoryText.implicitWidth
-                                        label: "Search history keyboard shortcuts"
+                                        label: qsTr("Search history keyboard shortcuts")
 
                                         Text {
                                             id: searchHistoryText
@@ -489,7 +489,7 @@ Category {
                                     Mixxx.SettingParameter {
                                         Layout.fillWidth: true
                                         implicitWidth: bpmDisplayText.implicitWidth
-                                        label: "BPM display precision"
+                                        label: qsTr("BPM display precision")
 
                                         Text {
                                             id: bpmDisplayText
@@ -566,7 +566,7 @@ Category {
 
                                     Mixxx.SettingParameter {
                                         Layout.fillWidth: true
-                                        label: "Library Row Height"
+                                        label: qsTr("Library Row Height")
 
                                         Text {
                                             anchors.fill: parent
@@ -600,7 +600,7 @@ Category {
                     Layout.fillWidth: true
                     Layout.topMargin: 40
                     implicitHeight: colorColumn.height
-                    label: "Colors"
+                    label: qsTr("Colors")
 
                     Column {
                         id: colorColumn
@@ -612,7 +612,7 @@ Category {
                             color: Theme.white
                             font.pixelSize: 14
                             font.weight: Font.DemiBold
-                            text: "Colors"
+                            text: qsTr("Colors")
                         }
                         Item {
                             anchors.left: parent.left
@@ -655,7 +655,7 @@ Category {
 
                                     Mixxx.SettingParameter {
                                         Layout.fillWidth: true
-                                        label: "Track palette"
+                                        label: qsTr("Track palette")
 
                                         Text {
                                             anchors.fill: parent
@@ -687,7 +687,7 @@ Category {
                                             Layout.fillWidth: true
                                             implicitHeight: hotcueDefaultColorText.implicitHeight
                                             implicitWidth: hotcueDefaultColorText.implicitWidth
-                                            label: "Hotcue default color"
+                                            label: qsTr("Hotcue default color")
 
                                             Text {
                                                 id: hotcueDefaultColorText
@@ -721,7 +721,7 @@ Category {
                                     Mixxx.SettingParameter {
                                         Layout.fillWidth: true
                                         implicitWidth: keyColorText.implicitWidth
-                                        label: "Key color"
+                                        label: qsTr("Key color")
 
                                         Text {
                                             id: keyColorText
@@ -768,7 +768,7 @@ Category {
                                             Layout.fillWidth: true
                                             implicitHeight: loopDefaultColorText.implicitHeight
                                             implicitWidth: loopDefaultColorText.implicitWidth
-                                            label: "Loop default color"
+                                            label: qsTr("Loop default color")
 
                                             Text {
                                                 id: loopDefaultColorText
@@ -801,7 +801,7 @@ Category {
 
                                     Mixxx.SettingParameter {
                                         Layout.fillWidth: true
-                                        label: "Hotcue palette"
+                                        label: qsTr("Hotcue palette")
 
                                         Text {
                                             anchors.fill: parent
@@ -833,7 +833,7 @@ Category {
                                             Layout.fillWidth: true
                                             implicitHeight: jumpDefaultColorText.implicitHeight
                                             implicitWidth: jumpDefaultColorText.implicitWidth
-                                            label: "Jump default color"
+                                            label: qsTr("Jump default color")
 
                                             Text {
                                                 id: jumpDefaultColorText
@@ -875,7 +875,7 @@ Category {
             property bool dirty: false
 
             anchors.fill: parent
-            label: "Decks"
+            label: qsTr("Decks")
             visible: root.selectedIndex == 1
 
             onActivated: {
@@ -905,7 +905,7 @@ Category {
 
                         Mixxx.SettingParameter {
                             Layout.fillWidth: true
-                            label: "Cue mode"
+                            label: qsTr("Cue mode")
 
                             Text {
                                 anchors.fill: parent
@@ -932,7 +932,7 @@ Category {
 
                         Mixxx.SettingParameter {
                             Layout.fillWidth: true
-                            label: "Time format"
+                            label: qsTr("Time format")
 
                             Text {
                                 anchors.fill: parent
@@ -991,7 +991,7 @@ Category {
 
                         Mixxx.SettingParameter {
                             Layout.fillWidth: true
-                            label: "Set intro start to main cue when analyzing tracks"
+                            label: qsTr("Set intro start to main cue when analyzing tracks")
 
                             Text {
                                 anchors.fill: parent
@@ -1019,7 +1019,7 @@ Category {
 
                         Mixxx.SettingParameter {
                             Layout.fillWidth: true
-                            label: "Track time display"
+                            label: qsTr("Track time display")
 
                             Text {
                                 anchors.fill: parent
@@ -1048,7 +1048,7 @@ Category {
 
                         Mixxx.SettingParameter {
                             Layout.fillWidth: true
-                            label: "Double-press Load button to clone playing track"
+                            label: qsTr("Double-press Load button to clone playing track")
 
                             Text {
                                 anchors.fill: parent
@@ -1074,7 +1074,7 @@ Category {
 
                         Mixxx.SettingParameter {
                             Layout.fillWidth: true
-                            label: "Track load point"
+                            label: qsTr("Track load point")
 
                             Text {
                                 anchors.fill: parent
@@ -1089,7 +1089,7 @@ Category {
                         Skin.ComboBox {
                             id: trackLoadPointInput
 
-                            model: ["Main cue", "Beginning of track", "First sound", "Intro start", "First hotcue",]
+                            model: [qsTr("Main cue"), qsTr("Beginning of track"), qsTr("First sound"), qsTr("Intro start"), qsTr("First hotcue"),]
 
                             onCurrentIndexChanged: decksTab.dirty = true
                         }
@@ -1101,7 +1101,7 @@ Category {
 
                         Mixxx.SettingParameter {
                             Layout.fillWidth: true
-                            label: "Loading a track when playing"
+                            label: qsTr("Loading a track when playing")
 
                             Text {
                                 anchors.fill: parent
@@ -1129,7 +1129,7 @@ Category {
                     Layout.fillWidth: true
                     Layout.topMargin: 40
                     implicitHeight: speedKeyColumn.height
-                    label: "Speed & Key"
+                    label: qsTr("Speed & Key")
 
                     Column {
                         id: speedKeyColumn
@@ -1143,7 +1143,7 @@ Category {
                             color: Theme.white
                             font.pixelSize: 14
                             font.weight: Font.DemiBold
-                            text: "Speed & Key"
+                            text: qsTr("Speed & Key")
                         }
                         Text {
                             anchors.left: parent.left
@@ -1151,7 +1151,7 @@ Category {
                             color: Theme.white
                             font.pixelSize: 11
                             font.weight: Font.Thin
-                            text: "or tempo & pitch"
+                            text: qsTr("or tempo & pitch")
                         }
                         Item {
                             anchors.left: parent.left
@@ -1181,7 +1181,7 @@ Category {
 
                                     Mixxx.SettingParameter {
                                         Layout.fillWidth: true
-                                        label: "Reset on track load"
+                                        label: qsTr("Reset on track load")
 
                                         Text {
                                             anchors.fill: parent
@@ -1206,7 +1206,7 @@ Category {
 
                                     Mixxx.SettingParameter {
                                         Layout.fillWidth: true
-                                        label: "Slider range"
+                                        label: qsTr("Slider range")
 
                                         Text {
                                             anchors.fill: parent
@@ -1233,7 +1233,7 @@ Category {
 
                                     Mixxx.SettingParameter {
                                         Layout.fillWidth: true
-                                        label: "Sync mode"
+                                        label: qsTr("Sync mode")
 
                                         Text {
                                             anchors.fill: parent
@@ -1261,7 +1261,7 @@ Category {
                                     Mixxx.SettingParameter {
                                         Layout.fillWidth: true
                                         height: 32
-                                        label: "Slider orientation"
+                                        label: qsTr("Slider orientation")
 
                                         Column {
                                             anchors.fill: parent
@@ -1270,14 +1270,14 @@ Category {
                                                 color: Theme.white
                                                 font.pixelSize: 14
                                                 font.weight: Font.Medium
-                                                text: "Slider orientation"
+                                                text: qsTr("Slider orientation")
                                             }
                                             Text {
                                                 color: Theme.white
                                                 font.italic: true
                                                 font.pixelSize: 11
                                                 font.weight: Font.Thin
-                                                text: "Define which end of the slider will increase the pitch"
+                                                text: qsTr("Define which end of the slider will increase the pitch")
                                             }
                                         }
                                     }
@@ -1294,7 +1294,7 @@ Category {
 
                                     Mixxx.SettingParameter {
                                         Layout.fillWidth: true
-                                        label: "Keylock mode"
+                                        label: qsTr("Keylock mode")
 
                                         Text {
                                             anchors.fill: parent
@@ -1321,7 +1321,7 @@ Category {
 
                                     Mixxx.SettingParameter {
                                         Layout.fillWidth: true
-                                        label: "Keyunlock mode"
+                                        label: qsTr("Keyunlock mode")
 
                                         Text {
                                             anchors.fill: parent
@@ -1347,7 +1347,7 @@ Category {
 
                                     Mixxx.SettingParameter {
                                         Layout.fillWidth: true
-                                        label: "Pitch bend behaviour"
+                                        label: qsTr("Pitch bend behaviour")
 
                                         Text {
                                             anchors.fill: parent
@@ -1372,7 +1372,7 @@ Category {
                                     Layout.rowSpan: 3
 
                                     Mixxx.SettingParameter {
-                                        label: "Pitch bend behaviour"
+                                        label: qsTr("Pitch bend behaviour")
                                     }
                                     GridLayout {
                                         Layout.fillWidth: true
@@ -1385,7 +1385,7 @@ Category {
                                             color: Theme.white
                                             font.pixelSize: 14
                                             font.weight: Font.DemiBold
-                                            text: "Adjustment buttons"
+                                            text: qsTr("Adjustment buttons")
                                         }
                                         Text {
                                             // Layout.fillWidth: true
@@ -1393,7 +1393,7 @@ Category {
                                             color: Theme.white
                                             font.pixelSize: 14
                                             font.weight: Font.Medium
-                                            text: "Fine"
+                                            text: qsTr("Fine")
                                         }
                                         Text {
                                             // Layout.fillWidth: true
@@ -1401,14 +1401,14 @@ Category {
                                             color: Theme.white
                                             font.pixelSize: 14
                                             font.weight: Font.Medium
-                                            text: "Coarse"
+                                            text: qsTr("Coarse")
                                         }
                                         Text {
                                             Layout.leftMargin: 20
                                             color: Theme.white
                                             font.pixelSize: 14
                                             font.weight: Font.Medium
-                                            text: "Temporary"
+                                            text: qsTr("Temporary")
                                         }
                                         SettingComponents.SpinBox {
                                             id: adjustmentButtonsTemporaryFineInput
@@ -1445,7 +1445,7 @@ Category {
                                             color: Theme.white
                                             font.pixelSize: 14
                                             font.weight: Font.Medium
-                                            text: "Permanent"
+                                            text: qsTr("Permanent")
                                         }
                                         SettingComponents.SpinBox {
                                             id: adjustmentButtonsPermanentFineInput
@@ -1484,7 +1484,7 @@ Category {
 
                                     Mixxx.SettingParameter {
                                         Layout.fillWidth: true
-                                        label: "Ramping sensitivity"
+                                        label: qsTr("Ramping sensitivity")
 
                                         Text {
                                             anchors.fill: parent
@@ -1534,7 +1534,7 @@ Category {
             anchors.left: parent.left
             backgroundColor: "#7D3B3B"
             opacity: enabled ? 1.0 : 0.5
-            text: "Reset"
+            text: qsTr("Reset")
 
             onPressed: {
                 switch (root.selectedIndex) {
@@ -1564,7 +1564,7 @@ Category {
                 backgroundColor: "#3F3F3F"
                 enabled: root.selectedIndex == 0 && themeColorTab.dirty || root.selectedIndex == 1 && decksTab.dirty
                 opacity: enabled ? 1.0 : 0.5
-                text: "Cancel"
+                text: qsTr("Cancel")
 
                 onPressed: {
                     switch (root.selectedIndex) {
@@ -1582,7 +1582,7 @@ Category {
                 backgroundColor: (root.selectedIndex == 0 && themeColorTab.dirty || root.selectedIndex == 1 && decksTab.dirty) ? "#3a60be" : "#3F3F3F"
                 enabled: root.selectedIndex == 0 && themeColorTab.dirty || root.selectedIndex == 1 && decksTab.dirty
                 opacity: enabled ? 1.0 : 0.5
-                text: "Save"
+                text: qsTr("Save")
 
                 onPressed: {
                     errorMessage.text = "";
@@ -1609,19 +1609,19 @@ Category {
             text: {
                 switch (parent.mode) {
                 case DeckComponents.TrackTime.Mode.TraditionalCoarse:
-                    return "Traditional (Coarse)";
+                    return qsTr("Traditional (Coarse)");
                 case DeckComponents.TrackTime.Mode.Seconds:
-                    return "Seconds";
+                    return qsTr("Seconds");
                 case DeckComponents.TrackTime.Mode.SecondsLong:
-                    return "Seconds (Long)";
+                    return qsTr("Seconds (Long)");
                 case DeckComponents.TrackTime.Mode.KiloSeconds:
-                    return "Kiloseconds";
+                    return qsTr("Kiloseconds");
                 case DeckComponents.TrackTime.Mode.HectoSeconds:
-                    return "Hectoseconds";
+                    return qsTr("Hectoseconds");
                 default:
                     console.warn(`Unsupported track time mode: ${root.mode}. Defaulting to traditional`);
                 case DeckComponents.TrackTime.Mode.Traditional:
-                    return "Traditional";
+                    return qsTr("Traditional");
                 }
             }
             verticalAlignment: Text.AlignVCenter

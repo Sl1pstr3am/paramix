@@ -12,7 +12,7 @@ Skin.Button {
 
     activeColor: Theme.effectColor
     highlight: focused
-    text: "F"
+    text: qsTr("F")
     visible: showFocusControl.value > 0
 
     TapHandler {

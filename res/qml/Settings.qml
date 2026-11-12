@@ -67,7 +67,7 @@ Popup {
 
                             anchors.verticalCenter: parent.verticalCenter
                             color: Theme.white
-                            text: 'Search...'
+                            text: qsTr("Search...")
                             visible: !parent.active
                         }
                         TextInput {
@@ -204,7 +204,7 @@ Popup {
                     color: Theme.white
                     font.pixelSize: 16
                     font.weight: Font.DemiBold
-                    text: "Settings"
+                    text: qsTr("Settings")
                 }
                 Rectangle {
                     id: tabBar

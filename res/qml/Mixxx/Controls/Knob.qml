@@ -53,6 +53,14 @@ Item {
         return targetValue * 2 * root.angle;
     }
 
+    Accessible.role: Accessible.Dial
+    Accessible.value: root.value
+    Accessible.minimumValue: root.min
+    Accessible.maximumValue: root.max
+    Accessible.stepSize: root.wheelStepSize
+    Accessible.onIncreaseAction: root.turned(Mixxx.MathUtils.clamp(root.value + root.wheelStepSize, root.min, root.max))
+    Accessible.onDecreaseAction: root.turned(Mixxx.MathUtils.clamp(root.value - root.wheelStepSize, root.min, root.max))
+
     Item {
         id: background
 

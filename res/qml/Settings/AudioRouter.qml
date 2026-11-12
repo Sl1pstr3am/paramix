@@ -378,7 +378,7 @@ Rectangle {
                 Layout.margins: 15
                 color: '#626262'
                 font.pixelSize: 14
-                text: "Inputs"
+                text: qsTr("Inputs")
             }
             ListView {
                 id: inputList
@@ -496,20 +496,20 @@ Rectangle {
                     maxWidth: mainCanvas.width < 560 ? 200 : 400
                     normalizedWidth: false
                     options: ["experimental", "default", "disabled"]
-                    tooltips: ["No delay", "Long delay", "Short delay"]
+                    tooltips: [qsTr("No delay"), qsTr("Long delay"), qsTr("Short delay")]
 
                     onSelectedChanged: {
                         root.hasChanges = true;
                     }
 
                     Mixxx.SettingParameter {
-                        label: "Multi-Soundcard Synchronization"
+                        label: qsTr("Multi-Soundcard Synchronization")
                     }
                 }
                 Text {
                     color: Theme.white
                     font.pixelSize: 14
-                    text: "Multi-Soundcard Synchronization"
+                    text: qsTr("Multi-Soundcard Synchronization")
                 }
                 Item {
                     Layout.fillWidth: true
@@ -533,7 +533,7 @@ Rectangle {
                 Layout.margins: 15
                 color: '#626262'
                 font.pixelSize: 14
-                text: "Outputs"
+                text: qsTr("Outputs")
             }
             ListView {
                 id: outputList

@@ -18,7 +18,7 @@ Rectangle {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.top: parent.top
         color: Theme.deckLoopLabelColor
-        text: "Loop"
+        text: qsTr("Loop")
     }
     Mixxx.ControlProxy {
         id: trackLoadedControl
@@ -92,7 +92,7 @@ Rectangle {
             implicitHeight: 26
             key: "loop_in"
             normalColor: root.buttonColor
-            text: "In"
+            text: qsTr("In")
         }
         Skin.ControlButton {
             id: loopOutButton
@@ -104,7 +104,7 @@ Rectangle {
             implicitHeight: 26
             key: "loop_out"
             normalColor: root.buttonColor
-            text: "Out"
+            text: qsTr("Out")
         }
         Skin.ControlButton {
             id: loopRecallButton
@@ -116,7 +116,7 @@ Rectangle {
             implicitHeight: 26
             key: loopEnabled.value ? "loop_enabled" : "reloop_toggle"
             normalColor: root.buttonColor
-            text: loopEnabled.value ? "exit" : "Recall"
+            text: loopEnabled.value ? qsTr("exit") : qsTr("Recall")
             toggleable: loopEnabled.value
         }
     }
@@ -145,6 +145,8 @@ Rectangle {
             activeColor: root.buttonColor
             implicitHeight: 28
             implicitWidth: 22
+
+            Accessible.name: qsTr("Halve loop")
 
             contentItem: Item {
                 anchors.fill: parent
@@ -278,6 +280,8 @@ Rectangle {
             activeColor: root.buttonColor
             implicitHeight: 28
             implicitWidth: 22
+
+            Accessible.name: qsTr("Double loop")
 
             contentItem: Item {
                 anchors.fill: parent

@@ -83,7 +83,7 @@ Rectangle {
             Cell {
                 item.font.bold: false
                 item.font.weight: root.deckPlayer?.isLoaded ? Font.DemiBold : Font.Thin
-                item.text: root.deckPlayer?.isLoaded ? root.currentTrack?.title : "No track loaded"
+                item.text: root.deckPlayer?.isLoaded ? root.currentTrack?.title : qsTr("No track loaded")
                 item.visible: true
             }
         }

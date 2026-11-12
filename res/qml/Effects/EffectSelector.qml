@@ -22,6 +22,8 @@ ComboBox {
     model: Mixxx.EffectsManager.visibleEffectsModel
     textRole: "display"
 
+    Accessible.name: qsTr("Effect")
+
     Component.onCompleted: syncCurrentEffect()
     onObservedEffectIdChanged: syncCurrentEffect()
     onActivated: index => {

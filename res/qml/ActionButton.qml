@@ -15,6 +15,9 @@ AbstractButton {
     property var category: ActionButton.Category.None
     property alias label: labelField
 
+    Accessible.role: Accessible.Button
+    Accessible.name: labelField.text
+
     implicitHeight: 24
 
     background: Item {

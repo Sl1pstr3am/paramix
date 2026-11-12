@@ -13,10 +13,10 @@ Item {
     property color introOutroColor: "blue"
     property color labelColor: "white"
     property color fallbackHotcueColor: cueColor
-    property string cueText: "CUE"
-    property string loopStartText: "LOOP"
-    property string introStartText: "IN"
-    property string outroStartText: "OUT"
+    property string cueText: qsTr("CUE")
+    property string loopStartText: qsTr("LOOP")
+    property string introStartText: qsTr("IN")
+    property string outroStartText: qsTr("OUT")
     property string introOutroVisibilityGroup: "[Skin]"
     property string introOutroVisibilityKey: "show_intro_outro_cues"
     property string fontFamily: ""

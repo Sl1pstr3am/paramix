@@ -25,6 +25,8 @@ Item {
         implicitWidth: 22
         key: "reverse"
 
+        Accessible.name: qsTr("Reverse")
+
         contentItem: Shape {
             anchors.fill: parent
             antialiasing: true
@@ -58,7 +60,7 @@ Item {
         anchors.right: ejectButton.left
         anchors.rightMargin: 5
         implicitHeight: 22
-        text: "Beatgrid"
+        text: qsTr("Beatgrid")
         visible: root.width > 165
     }
     Skin.ControlButton {
@@ -70,6 +72,8 @@ Item {
         implicitHeight: 22
         implicitWidth: 22
         key: "eject"
+
+        Accessible.name: qsTr("Eject")
 
         contentItem: Item {
             anchors.fill: parent

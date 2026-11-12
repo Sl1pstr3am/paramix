@@ -12,6 +12,9 @@ AbstractButton {
     property color normalColor: Theme.white
     property color pressedColor: activeColor
 
+    Accessible.role: Accessible.Button
+    Accessible.name: text
+
     implicitHeight: 20
     implicitWidth: 98
 
