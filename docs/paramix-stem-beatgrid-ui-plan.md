@@ -73,6 +73,10 @@ provides, so phases below plan integration and polish rather than rebuilding wor
 
 ### 3.1 Beatgrid
 
+> Full audit with citations, the ordered work list and the top risks:
+> [`docs/beatgrid-audit.md`](beatgrid-audit.md). The summary below predates it and stays accurate,
+> but the audit adds the serialization hazards.
+
 - **Model:** `mixxx::Beats` (`src/track/beats.h`) = 0..N `BeatMarker{position, beatsTillNextMarker}` + exactly one terminal tempo marker. Constant tempo = no markers. Serialized as `BeatGrid-2.0` (constant) or `BeatMap-1.0` (markers); `BeatGrid-1.0` still readable. Positions are int32 frames on the wire, double in memory.
 - **Detection:** `AnalyzerBeats` (`src/analyzer/analyzerbeats.cpp`) selects one of two hard-coded plugins: **Queen Mary** (`lib/qm-dsp`, `src/analyzer/plugins/analyzerqueenmarybeats.cpp`) and legacy **SoundTouch** (BPM-only). The plugin is resolved by string id through an `if/else`; there is no dynamic loading. `BeatUtils` (`src/track/beatutils.cpp`) then irons the beat list (25 ms phase tolerance, max 1 outlier, ≥16 beats per constant region), picks the longest constant region, and snaps BPM with a fixed ladder (integer → 0.5 below 85 → 2/3 above 127 → 1/3 → 1/12). Half/double ambiguity is resolved heuristically, not by evidence.
 - **No downbeats/bars/meter/confidence/hypotheses anywhere.** The proto (`src/proto/beats.proto`) declares `Beat.source`, `Beat.enabled` and `Bpm.source` but never writes/reads them — free schema room.
@@ -463,7 +467,7 @@ Critical path: **A3 → A4 → A5 → A6 → integration**. A1/A2 and A7 can run
 | Phase | Duration | Agents | Contents | Exit gate |
 |---|---|---|---|---|
 | **−1 Baseline** | 1 wk | A0, A8 | **DONE 2026-11-11** (`91b72cd`, `7cbd5fc`). Commit the import; restore `.clang-format`, `.pre-commit-config.yaml`, `.gitignore`, `.github/workflows`; green build/tests on all four targets (Windows x64, Linux x64, macOS arm64, macOS x86_64). No `upstream` remote — the owner's instruction is not to sync with upstream. Measured results in `docs/baseline-report.md`; run `43100769404` green on all five jobs | ✅ CI green, formatting gated |
-| **0 Discovery & spikes** | 2 wks | A0, A2, A3, A6, A8 | ADR-001 runtime/model, ADR-002 cache format, ADR-003 grid format, ADR-004 UI/customization, ADR-005 model distribution; spikes: ONNX `htdemucs_ft` on M-series/Windows/Linux; Beat This! ONNX F-measure; 8-ch FLAC write/read; 4-lane 60 fps prototype; GitHub Releases download dry run. **Stem-layer inventory already done** (§3.2, §3.3) — no need to re-derive what exists | Measured numbers + ADRs accepted |
+| **0 Discovery & spikes** | 2 wks | A0, A2, A3, A6, A8 | ADR-001 runtime/model, ADR-002 cache format, ADR-003 grid format, ADR-004 UI/customization, ADR-005 model distribution; spikes: ONNX `htdemucs_ft` on M-series/Windows/Linux; Beat This! ONNX F-measure; 8-ch FLAC write/read; 4-lane 60 fps prototype; GitHub Releases download dry run. **Stem-layer inventory done** (§3.2, §3.3) and **beatgrid audit done** (`docs/beatgrid-audit.md`); measure the in-tree qm-dsp `DownBeat` baseline before evaluating an ML downbeat model | Measured numbers + ADRs accepted |
 | **1 Contracts** | 1 wk | A0 + all | Freeze `StemSeparator`, `StemCache`, `BeatDetector`, `BeatGrid-3.0`, renderer/skin contracts; CMake flags; schema draft; manifest format; fixtures | Interfaces reviewed, skeleton builds |
 | **2.1 Build** | 2 wks | A1–A3, A6–A9 | Grid v3 core + serialization; Beat This! plugin; separator core + dummy model; **design tokens + Paramix skin shell + branding inventory**; license matrix. Drop "renderer lane prototype": `WaveformRendererStem` exists (§3.3) | Unit tests green; demo of separated fixture |
 | **2.2 Build** | 2 wks | A3–A7 | Cache/DB/jobs (single + batch); `SoundSourceStemCache`; playback verification; **wire the existing stem renderer to separated sources** (it already handles `.stem.mp4` inputs) plus tinted composite mode; stem mixer/status UI; GitHub Releases model download manager | End-to-end: separate → load → 4 stems visible/mixable |
@@ -568,6 +572,7 @@ Two DJ sessions per milestone: one technical (beat alignment, stem bleed, FX, la
 | 14 | **Phase −1 complete** on 2026-11-11 (`91b72cd`, `7cbd5fc`): all four build targets green, repository checks enforced, formatting gated. See `docs/baseline-report.md`. |
 | 15 | **No `upstream` remote** and no syncing with mixxxdj/mixxx; the imported tree is the source of truth. The plan's Phase −1 row previously said to add one — that instruction is withdrawn. |
 | 16 | **Stem-layer inventory:** per-stem waveform rendering, stem controls and `.stem.mp4` reading already exist, so O3 and part of O2 are integration work, not construction (§1, §3.2, §3.3). |
+| 17 | **Beatgrid audit complete** (`docs/beatgrid-audit.md`): no downbeat field exists; qm-dsp's `DownBeat` is compiled but unused; grids must be extended **additively with unchanged version strings**, because an unknown version makes older builds replace the grid with a frame-0 placeholder and save it. ADR-001 is not a prerequisite for downbeats. |
 
 ### Still open (defaults I will assume if you do not object)
 
