@@ -5,7 +5,6 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QtDebug>
-
 #include <algorithm>
 #include <cmath>
 #include <vector>

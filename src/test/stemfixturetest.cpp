@@ -2,7 +2,6 @@
 
 #include <QStringList>
 #include <QtDebug>
-
 #include <array>
 #include <cmath>
 
