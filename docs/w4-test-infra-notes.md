@@ -172,16 +172,18 @@ These are documented rather than silently worked around:
    (`SoundSourceProxy` → FFmpeg/libav or libsndfile) decoding a plain
    8-channel WAV. `SoundSourceFFmpeg` decodes the stream's channel count as-is
    (`src/sources/soundsourceffmpeg.cpp` `initResampling`), so an 8-channel file
-   decodes to 8 channels. This is an assumption until a build confirms it on
-   all four targets.
+   decodes to 8 channels. This has since been confirmed on Windows x64 with the
+   vcpkg/FFmpeg build (see section 8); the other three targets still need a run.
 3. **Little-endian packing.** The generators use `array('h')`, which is
    native-endian. Every supported CI target (Windows x64, Linux x64/arm64,
    macOS arm64/x86_64) is little-endian, matching the RIFF/WAVE container.
 4. **No build was run for this workstream.** The CMake registration is
    intentionally out of scope; the C++ files have been written to match the
    existing test conventions (`gtest`, `MixxxTest`,
-   `SoundSourceProviderRegistration`, `mixxx::AudioSource`) but have not been
-   compiled. The Python generators and self-check **were** run and pass (below).
+   `SoundSourceProviderRegistration`, `mixxx::AudioSource`). They were later
+   compiled and executed locally against a temporary, uncommitted copy of the
+   registration (see section 8). The Python generators and self-check **were**
+   run and pass (below).
 
 ---
 
@@ -211,3 +213,62 @@ Stem fixtures:
 
 PASS: fixtures are deterministic, consistent, and the golden-grid F-measure behaves as expected.
 ```
+
+---
+
+## 8. Verified build and test run (Windows x64, RelWithDebInfo/Ninja)
+
+The two test files were compiled with the project's own compiler flags (extracted
+from the existing `mixxx-test` compile command, so the same defines, include
+paths, C++20 mode, and precompiled header were used) and then linked into
+`mixxx-test.exe` by temporarily adding the two lines from section 5 to a local,
+**uncommitted** copy of `CMakeLists.txt`. `CMakeLists.txt` is integrator-owned and
+is unchanged in the committed tree; the registration still has to be applied by
+the integrator for these tests to run in CI.
+
+Build result:
+
+```text
+[25/29] Building CXX object CMakeFiles/mixxx-test.dir/src/test/stemfixturetest.cpp.obj
+[26/29] Building CXX object CMakeFiles/mixxx-test.dir/src/test/beatgridfixturetest.cpp.obj
+[28/29] Linking CXX executable mixxx-test.exe
+```
+
+Test result (`mixxx-test.exe --gtest_filter=BeatGridFixtureTest.*:StemFixtureTest.*`):
+
+```text
+[==========] Running 6 tests from 2 test suites.
+[----------] 4 tests from BeatGridFixtureTest
+[ RUN      ] BeatGridFixtureTest.DecodesAsExpected
+[       OK ] BeatGridFixtureTest.DecodesAsExpected (49 ms)
+[ RUN      ] BeatGridFixtureTest.FMeasureOfGoldenGridIsPerfect
+[       OK ] BeatGridFixtureTest.FMeasureOfGoldenGridIsPerfect (7 ms)
+[ RUN      ] BeatGridFixtureTest.FMeasureOfShiftedGridFails
+[       OK ] BeatGridFixtureTest.FMeasureOfShiftedGridFails (5 ms)
+[ RUN      ] BeatGridFixtureTest.FMeasureHelperSemantics
+[       OK ] BeatGridFixtureTest.FMeasureHelperSemantics (5 ms)
+[----------] 4 tests from BeatGridFixtureTest (67 ms total)
+
+[----------] 2 tests from StemFixtureTest
+[ RUN      ] StemFixtureTest.EightChannelFixtureDecodesAsStem
+[       OK ] StemFixtureTest.EightChannelFixtureDecodesAsStem (22 ms)
+[ RUN      ] StemFixtureTest.IndividualStemsAndMixDecodeAsStereo
+[       OK ] StemFixtureTest.IndividualStemsAndMixDecodeAsStereo (70 ms)
+[----------] 2 tests from StemFixtureTest (93 ms total)
+
+[==========] 6 tests from 2 test suites ran. (161 ms total)
+[  PASSED  ] 6 tests.
+```
+
+This confirms, on Windows x64:
+
+- The click-track fixture decodes with the expected sample rate, channel count,
+  and duration through `SoundSourceProxy`.
+- The golden grid scores F-measure 1.0 and the +100 ms shifted grid fails, in C++
+  as well as in Python.
+- The 8-channel fixture really does decode to `ChannelCount::stem()` (8 channels),
+  and the four stereo stems and the mix decode to 2 channels. The previously
+  assumed FFmpeg behavior holds.
+
+Still unverified: the same run on Linux x64 and both macOS targets. Once the
+registration is applied, CI covers those.
