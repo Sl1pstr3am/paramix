@@ -1,7 +1,7 @@
 # Paramix — Beatgrid, Stem Separation & UI Program Plan
 
 **Status:** Proposal v0.2 (decisions locked) · 2026-11-11
-**Repository:** `paramix` (working tree is a Mixxx 2.7.0-alpha fork; remote `github.com/Sl1pstr3am/paramix`)
+**Repository:** `paramix` (working tree is a Mixxx 2.7.0-alpha fork; remote `github.com/christianstuart/paramix`)
 **Scope of this document:** planning and architecture only. No source code was modified to produce it.
 
 ---
@@ -26,10 +26,15 @@ Three findings shape the plan:
 | 2 | **Trigger:** on-demand, with optional **batch** separation | Job queue accepts one or many tracks; "Separate" and "Separate selected/all" actions; no auto-separate on import by default; pause/cancel/resume. |
 | 3 | **Downbeats/bars:** required in **v1** | BeatGrid-3.0 downbeat phase, bar lines and "set downbeat" editing are v1 acceptance criteria, not deferred; bar-aware quantise/sync land as flags in the same release. |
 | 4 | **Traktor interoperability:** required | `.stem.mp4` **export** (4 ALAC/AAC streams + NI JSON atom) is v1 scope; NI `.stem.mp4` import stays compatible; validate round-trip and Traktor loading. |
-| 5 | **UI:** new QML skin **default** and **highly customisable** | Paramix QML skin ships as the default; design tokens, layout variants (2/4 deck, stem lane density), colour schemes, and user-overridable QML; legacy skins remain selectable. |
+| 5 | **UI:** new QML skin **default** and **highly customizable** | Paramix QML skin ships as the default; design tokens, layout variants (2/4 deck, stem lane density), color schemes, and user-overridable QML; legacy skins remain selectable. |
 | 6 | **Platforms:** Windows x64, Linux x64 (+ arm64 where feasible), macOS arm64 **and** x86_64 | Universal macOS build; ONNX Runtime EPs mapped per platform; no iOS/Android in v1. |
-| 7 | **Model hosting:** **GitHub Releases**, **download-only** (see §5.9) | No model files in git or installers; manifest + SHA-256 + MIT licence shown before download; first separation downloads `htdemucs_ft` (~630 MB fp16) with progress/resume; an offline bundle remains a packaging add-on, not an architecture change. |
+| 7 | **Model hosting:** **GitHub Releases**, **download-only** (see §5.9) | No model files in git or installers; manifest + SHA-256 + MIT license shown before download; first separation downloads `htdemucs_ft` (~630 MB fp16) with progress/resume; an offline bundle remains a packaging add-on, not an architecture change. |
 | 8 | **Rebrand:** **Paramix** | Product name, icons, bundle/package IDs, desktop entry, skin name, docs, website strings; GPL notices and upstream attribution retained. |
+| 9 | **Model release location:** dedicated **`paramix-models`** repository | Model assets and their manifests live outside the app repo, so app clones and Releases stay small; the manifest URL is the only coupling. |
+| 10 | **Data directory:** **migrate to `~/.paramix`** | First-run migration wizard copies the library DB, settings and controller mappings; a downgrade path keeps the old directory intact until the user confirms. Supersedes the earlier brand-only recommendation in §6.9. |
+| 11 | **Versioning:** start at **`0.1`**, milestone releases | `0.1`, `0.2`, … per shipped milestone; About shows "Paramix 0.1 (based on Mixxx 2.7.0)". |
+| 12 | **GPU policy:** **auto with opt-out** | CoreML (macOS), DirectML/CUDA (Windows), CUDA (Linux), CPU fallback; Settings can force CPU. |
+| 13 | **`.stem.mp4` codec:** **user-selectable (ALAC or AAC)** | Settings chooses the export/analysis codec; the export dialog shows the size/time trade-off. No silent default. |
 
 ---
 
@@ -37,12 +42,12 @@ Three findings shape the plan:
 
 | # | Outcome | Measurable acceptance |
 |---|---|---|
-| O1 | **Beatgrid engine** | Downbeat-aware grids; accuracy beats Queen Mary on a labelled fixture set (beat F ≥ 0.90 electronic / ≥ 0.85 mixed repertoire, downbeat F ≥ 0.75); variable-tempo detection for non-4/4 material; non-destructive edits; old libraries open unchanged. |
+| O1 | **Beatgrid engine** | Downbeat-aware grids; accuracy beats Queen Mary on a labeled fixture set (beat F ≥ 0.90 electronic / ≥ 0.85 mixed repertoire, downbeat F ≥ 0.75); variable-tempo detection for non-4/4 material; non-destructive edits; old libraries open unchanged. |
 | O2 | **Stem separation** | 4 stems (drums/bass/vocals/other) from any supported audio file, fully offline after the one-time model download; default **`htdemucs_ft`** quality (MUSDB SDR ≈ 9.2 dB avg; vocals ≥ 8.0 dB); on-demand and batch jobs with progress/cancel/resume; cached so the second load is instant; per-stem gain/mute/solo/FX; instant acapella/instrumental buttons; **required** `.stem.mp4` export for Traktor; ~2 min per 4-min track on M-series CPU, seconds with CoreML/DirectML. |
-| O3 | **4-stem waveform** | Each stem visible as its own labelled, coloured lane **and** as a tinted composite (both modes), reacting to mute/solo/gain; muted stems stay visible but dimmed; downbeat accents visible; 60 fps with 4 decks at 1080p; no audio-thread stalls. |
-| O4 | **UI overhaul** | A coherent, rebranded **Paramix** QML skin as the default (deck, stem mixer, library badges, settings), highly customisable via design tokens/layout variants/colour schemes; colour-blind-safe stem palette + labels; keyboard/controller accessible; localised; responsive at 1280×720 and up on Windows, Linux, macOS arm64 and macOS x86_64. |
+| O3 | **4-stem waveform** | Each stem visible as its own labeled, colored lane **and** as a tinted composite (both modes), reacting to mute/solo/gain; muted stems stay visible but dimmed; downbeat accents visible; 60 fps with 4 decks at 1080p; no audio-thread stalls. |
+| O4 | **UI overhaul** | A coherent, rebranded **Paramix** QML skin as the default (deck, stem mixer, library badges, settings), highly customizable via design tokens/layout variants/color schemes; color-blind-safe stem palette + labels; keyboard/controller accessible; localized; responsive at 1280×720 and up on Windows, Linux, macOS arm64 and macOS x86_64. |
 
-**What "commercial-grade" means here** (from Traktor/Serato/rekordbox behaviour): offline and private; separation runs in the background without touching the audio thread (Traktor Pro 4 uses iZotope RX offline, ~30–60 s per track, right-click per track); results are cached and reusable (Serato pre-computes a "Stems crate" in ~20 s per track and stores roughly 5× an MP3 per track); stems are individually mixable with gain/mute/solo and per-stem FX (rekordbox offers per-stem gain and FX; Traktor keeps FX deck-level); instant "acapella/instrumental" complement buttons; waveforms show the stems legibly in both stacked and tinted modes; the feature survives restarts, library moves, model updates and old projects; no cloud dependency; predictable CPU/storage budgets; and playback stays at 10–20 ms latency with 128–256 frame buffers.
+**What "commercial-grade" means here** (from Traktor/Serato/rekordbox behavior): offline and private; separation runs in the background without touching the audio thread (Traktor Pro 4 uses iZotope RX offline, ~30–60 s per track, right-click per track); results are cached and reusable (Serato pre-computes a "Stems crate" in ~20 s per track and stores roughly 5× an MP3 per track); stems are individually mixable with gain/mute/solo and per-stem FX (rekordbox offers per-stem gain and FX; Traktor keeps FX deck-level); instant "acapella/instrumental" complement buttons; waveforms show the stems legibly in both stacked and tinted modes; the feature survives restarts, library moves, model updates and old projects; no cloud dependency; predictable CPU/storage budgets; and playback stays at 10–20 ms latency with 128–256 frame buffers.
 
 ---
 
@@ -50,10 +55,10 @@ Three findings shape the plan:
 
 | Constraint | Consequence |
 |---|---|
-| **GPL-2.0** | Every linked library must be GPLv2-compatible. Apache-2.0 (TensorFlow/TFLite) is not GPLv2-compatible; AGPLv3 (Essentia) and GPLv3 (aubio) cannot be combined with GPLv2-only code. Model weights need their own licence audit. |
+| **GPL-2.0** | Every linked library must be GPLv2-compatible. Apache-2.0 (TensorFlow/TFLite) is not GPLv2-compatible; AGPLv3 (Essentia) and GPLv3 (aubio) cannot be combined with GPLv2-only code. Model weights need their own license audit. |
 | **Real-time audio thread** | Separation, disk I/O, model loading and allocation happen off the engine thread. `EngineDeck::processStem()` already runs in the RT callback — no new locks/allocations there. |
 | **Cross-platform** | macOS (arm64/x86_64), Windows (x64), Linux (x64/arm64). Inference via ONNX Runtime execution providers: CoreML (macOS), DirectML/CUDA (Windows), CUDA/CPU (Linux), CPU always. |
-| **Offline-first** | No cloud separation. Model files are downloaded once with checksums and an explicit licence, or pre-installed by a packager. |
+| **Offline-first** | No cloud separation. Model files are downloaded once with checksums and an explicit license, or pre-installed by a packager. |
 | **Backward compatibility** | Existing `.stem.mp4` files must keep working; `library.beats` blobs must remain readable; a downgrade must not silently destroy grids (dual-write). |
 | **Qt 6.4+ / QML** | QML builds require Qt ≥ 6.4 (`ComponentBehavior: Bound`); the QML skin is the modern UI path. Qt Widgets remain for library/preferences initially. |
 | **Human validation** | Audio quality is subjective; every milestone ends with a real DJ test on hardware (controller + speakers), not just CI. |
@@ -69,7 +74,7 @@ Three findings shape the plan:
 - **Detection:** `AnalyzerBeats` (`src/analyzer/analyzerbeats.cpp`) selects one of two hard-coded plugins: **Queen Mary** (`lib/qm-dsp`, `src/analyzer/plugins/analyzerqueenmarybeats.cpp`) and legacy **SoundTouch** (BPM-only). The plugin is resolved by string id through an `if/else`; there is no dynamic loading. `BeatUtils` (`src/track/beatutils.cpp`) then irons the beat list (25 ms phase tolerance, max 1 outlier, ≥16 beats per constant region), picks the longest constant region, and snaps BPM with a fixed ladder (integer → 0.5 below 85 → 2/3 above 127 → 1/3 → 1/12). Half/double ambiguity is resolved heuristically, not by evidence.
 - **No downbeats/bars/meter/confidence/hypotheses anywhere.** The proto (`src/proto/beats.proto`) declares `Beat.source`, `Beat.enabled` and `Bpm.source` but never writes/reads them — free schema room.
 - **Persistence:** `library.beats` BLOB + `beats_version` / `beats_sub_version` / `bpm` / `bpm_lock` (schema revision 40, `res/schema.xml`; DAO in `src/library/dao/trackdao.cpp`). Unknown versions are dropped and replaced by a frame-0 grid from cached BPM (`trackdao.cpp`), so downgrades lose phase.
-- **Consumers:** `BpmControl` (sync/phase), `QuantizeControl`, `LoopingControl` (beatloop, beatjump, loop move), `EngineSync`. All are beat-only; no bar-aware behaviour.
+- **Consumers:** `BpmControl` (sync/phase), `QuantizeControl`, `LoopingControl` (beatloop, beatjump, loop move), `EngineSync`. All are beat-only; no bar-aware behavior.
 - **Editing:** `DlgTrackInfo` BPM tab and `WTrackMenu`; `Beats::trySetBpm` **collapses tempo maps**, `tryScale` can fail on non-divisible segments; undo stack is 10 deep. There is no downbeat editing.
 - **Tests:** good unit coverage of `Beats` (serialization, iterators, BPM), Serato import, loop/sync; **no end-to-end detection test, no audio fixture with a golden grid, no benchmark**. Known defects: `operator==` ignores sample rate; `numBeatsInRange` is O(n²); `getBpmInRange` allocates on every grid edit.
 
@@ -77,15 +82,15 @@ Three findings shape the plan:
 
 - **Playback works:** `SoundSourceSTEM` (`src/sources/soundsourcestem.cpp`) reads the NI 5-stream layout (pre-mix + 4 stereo stems), exposes 8 channels (`ChannelCount::stem()`), and `EngineDeck::processStem()` (`src/engine/channels/enginedeck.cpp`) renders 4 stems separately, applies per-stem QuickFX, gain/mute smoothing, VU, then mixes to stereo. `kMaxSupportedStems = 4` (`src/engine/engine.h`).
 - **Controls/UI:** per-deck groups `[ChannelN_Stem1..4]` with `volume`, `mute`, `color`, VU; `WTrackStemMenu` loads a specific stem or the premix; `LateNightQML/Waveforms/StemControls.qml` and the Deere/Tango/LateNight `stem_channel.xml` skins already exist; Traktor S4 MK3 controller screens include stem views.
-- **Waveform data:** `WaveformData::stems[4]` (one byte per stem per frame, computed as max(L,R)), `Waveform-6.1` under `__STEM__`, `AnalyzerWaveform` stores per-stem peaks for 8-channel sources, and `allshader::WaveformRendererStem` renders overlay or stacked lanes with stem colours and live mute/gain.
-- **Missing:** separation/generation, stem cache, model management, export, persistence of `StemInfo` (labels/colours are re-read from the `.stem.mp4` JSON atom every time), and status/progress in the library. Stem detection is by **file extension**; generated stems have no `.stem.mp4` file, so the source path needs a hook.
+- **Waveform data:** `WaveformData::stems[4]` (one byte per stem per frame, computed as max(L,R)), `Waveform-6.1` under `__STEM__`, `AnalyzerWaveform` stores per-stem peaks for 8-channel sources, and `allshader::WaveformRendererStem` renders overlay or stacked lanes with stem colors and live mute/gain.
+- **Missing:** separation/generation, stem cache, model management, export, persistence of `StemInfo` (labels/colors are re-read from the `.stem.mp4` JSON atom every time), and status/progress in the library. Stem detection is by **file extension**; generated stems have no `.stem.mp4` file, so the source path needs a hook.
 
 ### 3.3 Waveform & UI
 
 - **Rendering:** `allshader::` renderers are `rendergraph` geometry nodes with two backends: QtQuick scene graph (QML skins) and QOpenGL (widget skins). Shaders live in `res/shaders/`. Frames are driven by `VSyncThread` (default 60 fps); each frame rebuilds vertex data into a reused `Geometry`.
 - **Stem renderer today:** overlay (outline + fill per stem) or stacked (`breadth/4` lanes); 6 vertices × 4 stems × 2 layers = **48 vertices per pixel column**, CPU-built per frame. Under the scene-graph backend `kPixelPerStrip = 2`, halving horizontal precision — already a quality compromise.
 - **Skin system:** legacy XML skins (Deere, LateNight, Tango, Shade) parsed by `legacyskinparser.cpp`; one QML skin (`LateNightQML`) with `skin.ini` + `main.qml` + `MainWindow.qml` (973 lines). **The library and preferences are still Qt Widgets** (`Library.qml` embeds `Mixxx.LegacyLibraryItem`), and preferences are being ported piecemeal (`res/qml/Settings/*`).
-- **Accessibility/localisation debt:** effectively no `Accessible.*`/`accessibleName`; the QML skin has 0 `qsTr()` calls (hardcoded English) while the widget UI is fully translated.
+- **Accessibility/localization debt:** effectively no `Accessible.*`/`accessibleName`; the QML skin has 0 `qsTr()` calls (hardcoded English) while the widget UI is fully translated.
 
 ### 3.4 Baseline gaps that block multi-agent work
 
@@ -100,13 +105,13 @@ Three findings shape the plan:
 
 ### Option A — "Momentum": focused upgrade (≈10–12 weeks, 3–4 agents)
 
-Keep the current grid representation and engine. Add an ONNX beat tracker behind the existing analyzer plugin interface, expose confidence and downbeat hints in the sub-version string, and improve half/double handling. Add offline HTDemucs separation with a downloaded model, an 8-channel FLAC cache, and wire generated stems into the existing 8-channel path. Improve the stem waveform (lanes, labels, colours) and refresh the QML skin. No schema migration beyond a stem-cache table.
+Keep the current grid representation and engine. Add an ONNX beat tracker behind the existing analyzer plugin interface, expose confidence and downbeat hints in the sub-version string, and improve half/double handling. Add offline HTDemucs separation with a downloaded model, an 8-channel FLAC cache, and wire generated stems into the existing 8-channel path. Improve the stem waveform (lanes, labels, colors) and refresh the QML skin. No schema migration beyond a stem-cache table.
 
 **Why choose it:** fastest path to a usable "stems for any track" feature; smallest regression surface; can be built by a small team. **What you give up:** no first-class bars/downbeats, destructive grid editing remains, one separation model, modest visual change.
 
 ### Option B — "Traktor-class": the recommended program (≈20–24 weeks, 6–8 agents)
 
-Everything in A, plus: **BeatGrid-3.0** with downbeats, confidence, source and alternative hypotheses, dual-written with the legacy blob; a non-destructive editor and bar-aware behaviours (downbeat lines, optional bar quantise/sync, bar loops); **quality tiers** for separation (HTDemucs default, optional user-supplied RoFormer-class "Max" tier) with a proper model manager (download, checksum, licence, GPU/CPU selection); a persistent job queue with resume and GC; a stem-native **4-lane waveform** with per-stem labels/colours/solo state and downbeat accents; a **new QML skin and design system** with a stem mixer strip and separation status; `.stem.mp4` export for Traktor interoperability.
+Everything in A, plus: **BeatGrid-3.0** with downbeats, confidence, source and alternative hypotheses, dual-written with the legacy blob; a non-destructive editor and bar-aware behaviors (downbeat lines, optional bar quantise/sync, bar loops); **quality tiers** for separation (HTDemucs default, optional user-supplied RoFormer-class "Max" tier) with a proper model manager (download, checksum, license, GPU/CPU selection); a persistent job queue with resume and GC; a stem-native **4-lane waveform** with per-stem labels/colors/solo state and downbeat accents; a **new QML skin and design system** with a stem mixer strip and separation status; `.stem.mp4` export for Traktor interoperability.
 
 **Why choose it:** it matches the brief end-to-end and leaves a maintainable architecture. **Cost/risk:** schema work, ML packaging across three OSes, UI scope, and a longer validation cycle.
 
@@ -136,15 +141,15 @@ B plus real-time/streaming separation, warp-marker/tempo-curve grids ("Ableton-s
 
 ### 5.1 Beat detection
 
-**Option 1 — Tune Queen Mary (S).** Keep qm-dsp, add better phase/half-double heuristics and confidence from the detection function. No new dependencies, no model download, no licence work. Accuracy improves modestly; downbeats remain unavailable; still fails on rubato/live material.
+**Option 1 — Tune Queen Mary (S).** Keep qm-dsp, add better phase/half-double heuristics and confidence from the detection function. No new dependencies, no model download, no license work. Accuracy improves modestly; downbeats remain unavailable; still fails on rubato/live material.
 
 **Option 2 — Beat This! via ONNX Runtime (recommended, S/M).** Beat This! (CPJKU/ISMIR 2024) is the only SOTA tracker found with **MIT code and MIT weights**, an existing ONNX export (82 MB fp32; log-mel input, 22.05 kHz mono, 1024-point FFT, hop 441) that outputs **beat and downbeat logits**, and no DBN post-processing, so it tolerates tempo changes. It runs in `AnalyzerBeats` behind the existing `AnalyzerBeatsPlugin` interface; Queen Mary stays as fallback on unsupported platforms and for fast analysis.
 
-**Option 3 — All-In-One / BeatNet (S/M, conditional).** All-In-One also emits downbeats/meter/structure and is small, but its weights need a licence check; BeatNet is strong but its shipping weights also need verification. Use only if Beat This!'s downbeat quality is insufficient.
+**Option 3 — All-In-One / BeatNet (S/M, conditional).** All-In-One also emits downbeats/meter/structure and is small, but its weights need a license check; BeatNet is strong but its shipping weights also need verification. Use only if Beat This!'s downbeat quality is insufficient.
 
 **Option 4 — madmom / Essentia / aubio (rejected).** madmom's pretrained models are CC BY-NC-SA (non-commercial); Essentia is AGPLv3; aubio is GPLv3. All conflict with GPL-2.0 distribution. They can be used offline for evaluation only, never linked or shipped.
 
-**Recommendation:** Option 2, with Option 1 retained as the always-available fallback and Option 3 as a downbeat quality upgrade. Evaluate on a labelled fixture set before replacing the default.
+**Recommendation:** Option 2, with Option 1 retained as the always-available fallback and Option 3 as a downbeat quality upgrade. Evaluate on a labeled fixture set before replacing the default.
 
 ### 5.2 Grid representation
 
@@ -158,18 +163,18 @@ B plus real-time/streaming separation, warp-marker/tempo-curve grids ("Ableton-s
 
 ### 5.3 Separation models
 
-| Model | Code / weights licence | Quality (MUSDB SDR) | Speed (4-min track) | Deployability | Verdict |
+| Model | Code / weights license | Quality (MUSDB SDR) | Speed (4-min track) | Deployability | Verdict |
 |---|---|---|---|---|---|
 | **HTDemucs v4 / htdemucs_ft** | **MIT / MIT** | 9.16 avg (vocals 8.24, drums 10.88, bass 11.76, other 5.74); ft 9.2 | ~1–2 s on RTX 5090; ~2 min (ft bag) / ~40 s (single) on M4 Pro CPU; ~4 min on 4 CPU threads via demucs.cpp | ONNX export practical (demucs-onnx, MIT, <1e-3 parity), ORT CoreML/DirectML/CUDA/CPU; 166 MB fp16 / 316 MB fp32 | **Default** |
-| **BS-RoFormer / Mel-Band RoFormer** | MIT code; community weights **no licence** | 9.65 avg (vocals 11.08) — best | ~1.5–2 s GPU; slow CPU | ONNX/TensorRT export exists; 0.6–1.2 GB | **Optional user-supplied "Max" tier**, never bundled |
-| **MDX23C (TFC-TDF v3)** | MIT code; UVR weights **no licence** | 7.15 avg; vocals 10.17 | Fast (~209× RTX) | Ships as ONNX in UVR; ORT-native | Optional fast/vocals tier only |
+| **BS-RoFormer / Mel-Band RoFormer** | MIT code; community weights **no license** | 9.65 avg (vocals 11.08) — best | ~1.5–2 s GPU; slow CPU | ONNX/TensorRT export exists; 0.6–1.2 GB | **Optional user-supplied "Max" tier**, never bundled |
+| **MDX23C (TFC-TDF v3)** | MIT code; UVR weights **no license** | 7.15 avg; vocals 10.17 | Fast (~209× RTX) | Ships as ONNX in UVR; ORT-native | Optional fast/vocals tier only |
 | **Open-Unmix** | MIT code; `umxhq` MIT, `umxl` **CC BY-NC-SA** | ~6.3–6.9 | Fast, small (~35 MB/stem) | umx.cpp exists | Baseline; only `umxhq` eligible |
 | **Spleeter** | MIT code/weights | ~5 (not commercial-grade) | Very fast | TensorFlow/TFLite — **Apache-2.0, GPLv2 conflict** | **Reject** |
 | **UVR community models** | App MIT; models mostly unlicensed | Varies | Varies | ORT | Use as UX reference only |
 
 **Speed anchors:** RTX 5090 RTFx: htdemucs 200×, MDX23C 209×, BS-RoFormer 109×, Mel-Band 170–194×. Apple M4 Pro CPU: htdemucs_ft bag RTF 0.49, single specialist 0.20; MPS 0.07. demucs.cpp CPU-only: ~4 min per 4-min track with 4 threads. Precedent: GPL-3.0 **xLights** ships HTDemucs in C++ via ONNX Runtime with CoreML/DirectML/CPU (`src-core/media/StemSeparator.cpp`) — a directly portable pattern.
 
-**Recommendation:** HTDemucs v4 as the bundled default (single model, fp16, CoreML/DirectML when available), with an optional "Max quality" tier that downloads only after showing the model licence and, for unlicensed community weights, only accepts user-supplied files. Do not bundle RoFormer/MDX23C/UVR weights. Evaluate quality against MUSDB18-HQ **offline only** (dataset licence is research/non-commercial; never redistribute).
+**Recommendation:** HTDemucs v4 as the bundled default (single model, fp16, CoreML/DirectML when available), with an optional "Max quality" tier that downloads only after showing the model license and, for unlicensed community weights, only accepts user-supplied files. Do not bundle RoFormer/MDX23C/UVR weights. Evaluate quality against MUSDB18-HQ **offline only** (dataset license is research/non-commercial; never redistribute).
 
 ### 5.4 Inference runtime
 
@@ -195,7 +200,7 @@ B plus real-time/streaming separation, warp-marker/tempo-curve grids ("Ableton-s
 
 ### 5.6 Cache format
 
-**8-channel FLAC + JSON sidecar at the original sample rate (recommended).** One lossless 8-ch file holds 4 stereo stems (FLAC supports 8 channels); JSON holds labels/colours/model/version/checksums. Read by the existing 8-ch engine path; no re-encode, no quality loss, ~50–120 MB per 4-min track. Resample model output back to the track's rate so frame positions stay aligned.
+**8-channel FLAC + JSON sidecar at the original sample rate (recommended).** One lossless 8-ch file holds 4 stereo stems (FLAC supports 8 channels); JSON holds labels/colors/model/version/checksums. Read by the existing 8-ch engine path; no re-encode, no quality loss, ~50–120 MB per 4-min track. Resample model output back to the track's rate so frame positions stay aligned.
 
 **NI `.stem.mp4` (interop option).** Reuses the existing reader/waveform path and is Traktor-compatible, but AAC/ALAC encoding adds time and is lossy for AAC; libmp4v2 is already vendored. Use as **export**, not the working cache.
 
@@ -205,7 +210,7 @@ B plus real-time/streaming separation, warp-marker/tempo-curve grids ("Ableton-s
 
 ### 5.7 4-stem waveform
 
-Market practice is split between **stacked lanes** (surgery, karaoke-style stem work) and **tinted composites** (small deck heights, overview). VirtualDJ and Serato tint the waveform; Traktor's Stem Deck shows a stem view; users report that a single tinted wave is easier to read when the deck is short, while stacked lanes are better for precise stem work. Colour alone is not enough: roughly 1 in 12 men are colour-blind, and users complain about dark hues and stem colours that ignore the waveform mode. Ship **both modes**, keep muted stems visible but dimmed, and pair colour with labels/position.
+Market practice is split between **stacked lanes** (surgery, karaoke-style stem work) and **tinted composites** (small deck heights, overview). VirtualDJ and Serato tint the waveform; Traktor's Stem Deck shows a stem view; users report that a single tinted wave is easier to read when the deck is short, while stacked lanes are better for precise stem work. Colour alone is not enough: roughly 1 in 12 men are color-blind, and users complain about dark hues and stem colors that ignore the waveform mode. Ship **both modes**, keep muted stems visible but dimmed, and pair color with labels/position.
 
 **Option 1 — First-class lanes + tinted composite in the existing renderer (recommended, S–M).** Promote stacked mode: fixed lane heights with gaps, per-stem label and solo/mute styling, dimming when muted, per-stem gain scaling, downbeat accents; keep the tinted overlay mode as a selectable alternative. Reuses the dual-backend renderer and settings plumbing.
 
@@ -219,19 +224,19 @@ Market practice is split between **stacked lanes** (surgery, karaoke-style stem 
 
 Current market patterns: Traktor Pro 4 uses right-click offline separation with a per-stem mute/solo Stem Deck; Serato adds a pre-computed "Stems crate" with instant acapella/instrumental and per-stem echo/brake pads; rekordbox offers per-stem gain and STEM FX; djay's Neural Mix is the lightest CPU and the 2025 quality leader; VirtualDJ exposes five stems and stem-EQ modes. The common denominator is a **4-row stem strip per deck** (gain, mute, solo), instant complement buttons, visible cache/analysis status, and a waveform that reads at a glance.
 
-**Option 1 — QML design system + new skin, hybrid shell (recommended, M–L).** Formalise `res/qml` components as a skinning API (tokens: colour, type, spacing, radius, motion), build a new "Paramix" QML skin (deck stem lanes, collapsible tinted composite, stem mixer strip with gain/mute/solo/QuickFX, acapella/instrumental buttons, separation status, model manager), keep the legacy widget library/preferences embedded until they are ported. Incremental, keeps Deere/Tango/Shade alive, and gives the stem UI room to breathe. Add MIDI-learn mappings for the stem strip and a performance meter.
+**Option 1 — QML design system + new skin, hybrid shell (recommended, M–L).** Formalise `res/qml` components as a skinning API (tokens: color, type, spacing, radius, motion), build a new "Paramix" QML skin (deck stem lanes, collapsible tinted composite, stem mixer strip with gain/mute/solo/QuickFX, acapella/instrumental buttons, separation status, model manager), keep the legacy widget library/preferences embedded until they are ported. Incremental, keeps Deere/Tango/Shade alive, and gives the stem UI room to breathe. Add MIDI-learn mappings for the stem strip and a performance meter.
 
 **Option 2 — Refresh the widget skins only (S).** Add stem controls/styles to Deere/Tango/LateNight. Cheapest, but the deck layout and workflow stay 2010-era and the QML path stagnates.
 
 **Option 3 — Full QML rewrite (L).** One framework, best HiDPI/accessibility story, but must port library, preferences, dialogs and controller screens; high regression risk before stems are proven.
 
-**Recommendation:** Option 1, staged S→M: first a tinted composite + 4-row stem strip (lowest risk, immediate value), then collapsible stacked lanes and per-stem FX sends. Define a colour-blind-safe stem palette plus text labels (never colour alone): drums `#E85D4A`, bass `#7A5AF8`, vocals `#2BB673`, other `#F2C94C`; validate contrast; add `qsTr()` and `Accessible.*` from day one.
+**Recommendation:** Option 1, staged S→M: first a tinted composite + 4-row stem strip (lowest risk, immediate value), then collapsible stacked lanes and per-stem FX sends. Define a color-blind-safe stem palette plus text labels (never color alone): drums `#E85D4A`, bass `#7A5AF8`, vocals `#2BB673`, other `#F2C94C`; validate contrast; add `qsTr()` and `Accessible.*` from day one.
 
 ### 5.9 Model hosting and distribution (decided: download-only via GitHub Releases)
 
-**What ships:** no model weights in git or in any installer. The app carries ONNX Runtime (the inference library) and a small **model manifest** (JSON) listing model id, version, URL, SHA-256, byte size, licence, stem layout, sample rate and required ORT opset. The actual `htdemucs_ft` assets (~630 MB fp16) live as GitHub Releases assets on the Paramix model-release repository (see the open item in §11).
+**What ships:** no model weights in git or in any installer. The app carries ONNX Runtime (the inference library) and a small **model manifest** (JSON) listing model id, version, URL, SHA-256, byte size, license, stem layout, sample rate and required ORT opset. The actual `htdemucs_ft` assets (~630 MB fp16) live as GitHub Releases assets on the dedicated **`paramix-models`** repository (decision 9).
 
-**First-use flow:** the first "Separate" action (or Settings → Stems → "Download model") shows size and the MIT licence, then downloads to `<app-data>/models/htdemucs_ft/<version>/` with progress, resume, SHA-256 verification and an atomic rename. Settings offers "Install from file" for offline machines, and a "Pre-download" button so a DJ can prepare before a gig. No audio ever leaves the machine.
+**First-use flow:** the first "Separate" action (or Settings → Stems → "Download model") shows size and the MIT license, then downloads to `<app-data>/models/htdemucs_ft/<version>/` with progress, resume, SHA-256 verification and an atomic rename. Settings offers "Install from file" for offline machines, and a "Pre-download" button so a DJ can prepare before a gig. No audio ever leaves the machine.
 
 **Why this choice:** it keeps four platform installers small (Windows, Linux, macOS arm64, macOS x86_64), decouples model updates from app releases, avoids bundling a 630 MB bag into every build, and uses free, versioned GitHub Releases. It also keeps the door open to a CDN later by changing one manifest URL.
 
@@ -242,7 +247,7 @@ Current market patterns: Traktor Pro 4 uses right-click offline separation with 
 - *Model changes invalidate caches* — the cache key includes model id + version; old caches are GC'd; a model update prompts rather than silently re-separating.
 - *Licence hygiene* — only MIT/Apache weights are hosted; `htdemucs_ft` is MIT (retain `LICENSE`/NOTICE). Unlicensed RoFormer/MDX23C/UVR weights are never hosted; user-supplied "Max" models stay local.
 
-**Release process:** a CI job exports/quantises the model, writes `manifest.json` + `.sha256`, and uploads the asset (GitHub allows up to 2 GB per asset). The manifest is signed and pinned in the app release; the app refuses assets whose checksum or licence metadata does not match.
+**Release process:** a CI job exports/quantises the model, writes `manifest.json` + `.sha256`, and uploads the asset (GitHub allows up to 2 GB per asset). The manifest is signed and pinned in the app release; the app refuses assets whose checksum or license metadata does not match.
 
 ---
 
@@ -305,7 +310,7 @@ message BeatGridV3 {
 - **Detection result** from a new `BeatDetector` interface: beats, downbeat positions, confidence, tempo segments, detector id, hypotheses (half/double, phase alternatives).
 - **Builder:** `BeatGridBuilder` converts beats → `Beats` markers (piecewise tempo), picks downbeat phase, resolves half/double using downbeat periodicity + tempo prior, and records confidence.
 - **Persistence:** write v3 into `library.beats`, keep a v2 blob in a new `beats_legacy` column (dual-write) so downgrades keep phase; add `beats_confidence REAL` and `beats_source TEXT` (nullable). Schema revision 41; DAO + migration tests.
-- **Consumers:** downbeat lines in the waveform (thick/coloured); optional bar quantise, bar-length loops and downbeat-aware sync (feature-flagged); grid editor gains "set downbeat", "shift grid", hypothesis choice, confidence badge; `trySetBpm` becomes non-destructive (warn + keep map) or explicitly "flatten grid".
+- **Consumers:** downbeat lines in the waveform (thick/colored); optional bar quantise, bar-length loops and downbeat-aware sync (feature-flagged); grid editor gains "set downbeat", "shift grid", hypothesis choice, confidence badge; `trySetBpm` becomes non-destructive (warn + keep map) or explicitly "flatten grid".
 - **Fallback:** if the ML model is unavailable, Queen Mary runs and the grid stays 2.0-compatible with no downbeats.
 
 ### 6.3 Separation pipeline
@@ -315,7 +320,7 @@ message BeatGridV3 {
 3. **Inference:** chunked windows (typically 7.8 s, 25% overlap), Hann/linear overlap-add; optional test-time augmentation/ensemble for the Max tier; ORT session per worker, reused.
 4. **Output:** 4 stems, resampled back to the track's rate, normalized consistently; write 8-channel FLAC atomically (temp dir → rename) plus `meta.json`.
 5. **Peaks:** feed the 8-channel buffer through `AnalyzerWaveform` (or compute peaks inline) so `Waveform-6.1` stem data exists and the renderer lights up.
-6. **Publish:** update DB cache row, `Track::setStemInfosWhileLocked()` (labels/colours), emit progress/finished, refresh library badge.
+6. **Publish:** update DB cache row, `Track::setStemInfosWhileLocked()` (labels/colors), emit progress/finished, refresh library badge.
 7. **Cancel/pause:** ORT run is chunk-granular; check a cancellation flag between chunks; persist progress for resume.
 
 ### 6.4 Playback integration
@@ -335,11 +340,11 @@ message BeatGridV3 {
 
 ### 6.6 UI changes (new QML skin "Paramix")
 
-- **Deck:** waveform stack (overview + 4 stem lanes or tinted composite), stem mixer strip (4 faders, mute/solo, QuickFX knob, colour chip), instant acapella/instrumental buttons, separation badge ("Ready · htdemucs_ft" / "Separating 42%" / "Not separated").
+- **Deck:** waveform stack (overview + 4 stem lanes or tinted composite), stem mixer strip (4 faders, mute/solo, QuickFX knob, color chip), instant acapella/instrumental buttons, separation badge ("Ready · htdemucs_ft" / "Separating 42%" / "Not separated").
 - **Library:** stem status column/badge, context actions (Separate, Separate selected, Re-separate, Open cache, Export `.stem.mp4`), model/quality selection, storage usage.
-- **Settings:** new "Stems" page (on-demand default, batch option, quality tier, device CPU/GPU, cache limit, pre-download model, install-from-file, licence) and beatgrid options (detector, downbeat preferences, reanalysis policy).
+- **Settings:** new "Stems" page (on-demand default, batch option, quality tier, device CPU/GPU, cache limit, pre-download model, install-from-file, license) and beatgrid options (detector, downbeat preferences, reanalysis policy).
 - **Design system:** tokens in `res/qml/Theme` + per-skin overrides; dark default; contrast-checked; 1280×720 minimum; HiDPI; `qsTr()` from day one; `Accessible.*` on interactive controls.
-- **Customisation contract** (what "highly customisable" means): (1) design tokens for colour/typography/spacing/radius; (2) layout variants (2/4 deck, stem lane density, stacked vs tinted); (3) per-deck options (which controls show, waveform height); (4) named colour schemes, including a colour-blind-safe default; (5) user skin directories and QML component overrides loaded at runtime without recompiling; (6) all customisation persisted in settings and portable with the profile.
+- **Customisation contract** (what "highly customizable" means): (1) design tokens for color/typography/spacing/radius; (2) layout variants (2/4 deck, stem lane density, stacked vs tinted); (3) per-deck options (which controls show, waveform height); (4) named color schemes, including a color-blind-safe default; (5) user skin directories and QML component overrides loaded at runtime without recompiling; (6) all customization persisted in settings and portable with the profile.
 - **Compatibility:** the Paramix QML skin is the default from the first release; legacy widget skins (Deere, LateNight, Tango, Shade) remain selectable; the legacy library/preferences widgets are embedded until ported, so functionality never depends on a QML rewrite.
 
 ### 6.7 Key interfaces (sketch)
@@ -383,7 +388,7 @@ class BeatDetector {
 ### 6.8 Packaging & build
 
 - CMake: `STEMS` (default ON when ORT found), `STEMS_ORT_ROOT`, `STEMS_GPU` (CoreML/DirectML/CUDA), `BEAT_ML`; all feature-flagged so distro builds without models still compile.
-- **No model weights are bundled.** ONNX Runtime binaries ship with the app. At runtime the app reads the pinned manifest and downloads `htdemucs_ft` (~630 MB fp16) from GitHub Releases into the per-user models directory, with SHA-256 verification, resume, licence display and an "Install from file" path for offline machines.
+- **No model weights are bundled.** ONNX Runtime binaries ship with the app. At runtime the app reads the pinned manifest and downloads `htdemucs_ft` (~630 MB fp16) from GitHub Releases into the per-user models directory, with SHA-256 verification, resume, license display and an "Install from file" path for offline machines.
 - Targets: Windows x64; Linux x64 (arm64 where ORT/EP support allows); macOS **universal** (arm64 + x86_64) with universal ORT dylibs, codesigned and notarised. Android/iOS out of scope for v1.
 - macOS: CoreML EP, hardened runtime, notarisation; Windows: DirectML optional and no hard CUDA dependency; Linux: CPU/CUDA, Flatpak/AppImage notes (network permission for the model download; packagers may preinstall via install-from-file).
 - CI: GitHub Actions matrix (macOS arm64+x86_64, Windows, Ubuntu), build with and without stems, unit tests; model-dependent tests use mock separators; a separate release job publishes model assets + manifest + SHA-256.
@@ -393,7 +398,7 @@ class BeatDetector {
 - **Product identity:** application name `Paramix`, icons/splash/wordmark, About dialog, window titles, installer metadata, package IDs (`org.paramix.Paramix` or similar), desktop entry, Flatpak ID, macOS bundle identifier, Windows product/upgrade GUIDs.
 - **UI copy:** new skin name, settings pages, library labels, tooltips, website/docs links; keep "Traktor" and "Native Instruments" out of product copy (interoperability is described as "Stem file export", not endorsement).
 - **Legal:** retain GPL-2.0 notices, upstream copyright headers and attribution to the Mixxx project; add a NOTICE explaining the fork. Do not use Mixxx trademarks as the product name.
-- **Data/compatibility decision (must resolve before Phase 1):** keep the existing `~/.mixxx` settings/library directory for drop-in compatibility (brand-only rebrand), or move to `~/.paramix` with a first-run migration wizard. Recommendation: **brand-only in v1** (keep the data directory and internal `Mixxx` identifiers), then offer an optional migration once the fork is stable — this avoids breaking existing libraries, controller mappings and settings.
+- **Data/compatibility decision (resolved 2026-11-11):** move to **`~/.paramix`** with a first-run migration wizard (decision 10). The wizard copies the library DB, settings and controller mappings, verifies the copy before switching, and leaves `~/.mixxx` untouched so a downgrade or a failed migration is recoverable. Internal `Mixxx` identifiers may stay where changing them would break file formats; user-visible paths, settings and branding become Paramix.
 - **Versioning:** `Paramix <fork-version>` surfaced in the UI, with the upstream Mixxx version recorded in About/diagnostics (e.g. "Paramix 1.0 (based on Mixxx 2.7.0)").
 
 ---
@@ -411,9 +416,9 @@ class BeatDetector {
 | **A4 Stem pipeline/DB** | Cache, jobs, schema, DAO, source wrapper | `src/stems/stemcache.*`, `src/library/dao/`, `res/schema.xml`, `src/sources/soundsourcestemcache.*` | Durable cache + migration |
 | **A5 Audio engine** | Playback integration, controls, latency | `src/engine/` (incl. `cachingreader/`), `src/mixer/` | 8-ch playback verified, no xruns |
 | **A6 Waveform** | 4-lane renderer, downbeats, performance | `src/waveform/`, `src/rendergraph/`, `res/shaders/` | 60 fps 4-deck stem waveform |
-| **A7 QML/UX** | Design system, Paramix skin/branding, customisation contract, settings, status | `res/skins/Paramix/`, `res/qml/`, `src/qml/`, `src/preferences/dialog/dlgprefstems.*`, branding assets | New default skin + Stems settings |
+| **A7 QML/UX** | Design system, Paramix skin/branding, customization contract, settings, status | `res/skins/Paramix/`, `res/qml/`, `src/qml/`, `src/preferences/dialog/dlgprefstems.*`, branding assets | New default skin + Stems settings |
 | **A8 QA/Validation** | Fixtures, SDR/F-measure, perf, soak | `src/test/`, `tools/ci/`, benchmark harness | Automated gates + human checklist |
-| **A9 Compliance/Packaging** | Licences, NOTICE, model release pipeline, installers, CI, rebrand metadata | `packaging/`, `.github/`, `docs/third-party-models.md` | Signed builds, licence audit, GitHub model releases |
+| **A9 Compliance/Packaging** | Licences, NOTICE, model release pipeline, installers, CI, rebrand metadata | `packaging/`, `.github/`, `docs/third-party-models.md` | Signed builds, license audit, GitHub model releases |
 
 **Operating rules:** one worktree/branch per agent; no edits outside owned paths without an interface change approved by A0; every change lands with tests; A0 runs an automated review pass before merge; a human reviews audio-affecting merges and signs off releases.
 
@@ -425,7 +430,7 @@ A2 (beat model) ─────► A1 (builder uses detector results)
 A3 (separator) ─────► A4 (cache/queue) ─────► A5 (playback) ─────► A6 (waveform)
 A4 ─────────────────► A7 (status/settings/library badges)
 A8 ── parallel from day 1 (fixtures, harness) ──► gates
-A9 ── parallel from phase 2 (licences, packaging, CI)
+A9 ── parallel from phase 2 (licenses, packaging, CI)
 ```
 
 Critical path: **A3 → A4 → A5 → A6 → integration**. A1/A2 and A7 can run widely in parallel; A7's deck UI depends on A6's lane contract, not its implementation.
@@ -435,14 +440,14 @@ Critical path: **A3 → A4 → A5 → A6 → integration**. A1/A2 and A7 can run
 | Phase | Duration | Agents | Contents | Exit gate |
 |---|---|---|---|---|
 | **−1 Baseline** | 1 wk | A0, A8 | Commit the import; restore `.clang-format`, `.pre-commit-config.yaml`, `.gitignore`, `.github/workflows` from upstream; add `upstream` remote; green build/tests on all four targets (Windows x64, Linux x64, macOS arm64, macOS x86_64) | CI green, formatting enforced |
-| **0 Discovery & spikes** | 2 wks | A0, A2, A3, A6, A8 | ADR-001 runtime/model, ADR-002 cache format, ADR-003 grid format, ADR-004 UI/customisation, ADR-005 model distribution; spikes: ONNX `htdemucs_ft` on M-series/Windows/Linux; Beat This! ONNX F-measure; 8-ch FLAC write/read; 4-lane 60 fps prototype; GitHub Releases download dry run | Measured numbers + ADRs accepted |
+| **0 Discovery & spikes** | 2 wks | A0, A2, A3, A6, A8 | ADR-001 runtime/model, ADR-002 cache format, ADR-003 grid format, ADR-004 UI/customization, ADR-005 model distribution; spikes: ONNX `htdemucs_ft` on M-series/Windows/Linux; Beat This! ONNX F-measure; 8-ch FLAC write/read; 4-lane 60 fps prototype; GitHub Releases download dry run | Measured numbers + ADRs accepted |
 | **1 Contracts** | 1 wk | A0 + all | Freeze `StemSeparator`, `StemCache`, `BeatDetector`, `BeatGrid-3.0`, renderer/skin contracts; CMake flags; schema draft; manifest format; fixtures | Interfaces reviewed, skeleton builds |
-| **2.1 Build** | 2 wks | A1–A3, A6–A9 | Grid v3 core + serialization; Beat This! plugin; separator core + dummy model; renderer lane prototype; design tokens + Paramix skin shell + branding inventory; licence matrix | Unit tests green; demo of separated fixture |
+| **2.1 Build** | 2 wks | A1–A3, A6–A9 | Grid v3 core + serialization; Beat This! plugin; separator core + dummy model; renderer lane prototype; design tokens + Paramix skin shell + branding inventory; license matrix | Unit tests green; demo of separated fixture |
 | **2.2 Build** | 2 wks | A3–A7 | Cache/DB/jobs (single + batch); `SoundSourceStemCache`; playback verification; 4-lane rendering; stem mixer/status UI; GitHub Releases model download manager | End-to-end: separate → load → 4 stems visible/mixable |
-| **2.3 Build** | 2 wks | A1, A5, A7, A9 | Downbeats/editor + bar behaviours (v1); `.stem.mp4` export; xrun/latency tuning; settings/library badges; rebrand packaging, installers, signed manifest | Feature-complete, cross-platform builds |
+| **2.3 Build** | 2 wks | A1, A5, A7, A9 | Downbeats/editor + bar behaviors (v1); `.stem.mp4` export; xrun/latency tuning; settings/library badges; rebrand packaging, installers, signed manifest | Feature-complete, cross-platform builds |
 | **3 Integration** | 2 wks | A0, A8 | Merge freeze, cross-platform QA, cache GC, error paths, upgrade/downgrade tests, Traktor export round-trip | All gates green on all four targets |
 | **4 Hardening** | 2–3 wks | A8 + all | Soak (2 h), CPU/GPU matrices, SDR/F-measure report, human DJ sessions, docs | Beta sign-off |
-| **5 Release** | 1 wk | A0, A9 | Release notes, licences, installers, model assets | Shipped |
+| **5 Release** | 1 wk | A0, A9 | Release notes, licenses, installers, model assets | Shipped |
 
 Total ≈ **20–24 weeks** with 6–8 agents active in phases 2–3. v1 scope explicitly includes downbeats/bars, `.stem.mp4` export and the download-only model manager, per the locked decisions.
 
@@ -453,7 +458,7 @@ Total ≈ **20–24 weeks** with 6–8 agents active in phases 2–3. v1 scope e
 - **Feature flags** (`STEMS`, `BEAT_ML`, `STEM_UI`) keep `main` usable while work lands.
 - **Two review layers:** a peer agent review (diff, tests, style) + a human review for audio/DSP changes.
 - **Shared-file policy:** `CMakeLists.txt`, `res/schema.xml`, `src/track/track.h`, `src/engine/engine.h` are single-owner files; changes go through A0.
-- **Definition of done** per workstream: unit tests, golden/regression tests, benchmark within budget, docs, no new licence, and a demo artifact.
+- **Definition of done** per workstream: unit tests, golden/regression tests, benchmark within budget, docs, no new license, and a demo artifact.
 
 ---
 
@@ -462,7 +467,7 @@ Total ≈ **20–24 weeks** with 6–8 agents active in phases 2–3. v1 scope e
 ### 8.1 Test pyramid
 
 - **Unit (GTest):** BeatGrid-3.0 serialization/round-trip and downgrade; detector result → builder → grid; downbeat phase; cache atomicity/GC; chunk overlap-add math; source wrapper metadata; model-manager checksum.
-- **Golden audio:** synthetic 4-band mix for plumbing (identity separator); NI `.stem.mp4` fixtures already in `src/test/stems` for playback; 5–10 CC-licensed tracks with hand-labelled beats for F-measure; MUSDB18-HQ dev-only for SDR (never committed).
+- **Golden audio:** synthetic 4-band mix for plumbing (identity separator); NI `.stem.mp4` fixtures already in `src/test/stems` for playback; 5–10 CC-licensed tracks with hand-labeled beats for F-measure; MUSDB18-HQ dev-only for SDR (never committed).
 - **End-to-end:** import → separate → load → assert 8 channels, 4 stem controls, waveform stem data, mute/solo, unload/reload, library move.
 - **Regression:** old library opens; downgrade build reads the dual-written 2.0 grid; Serato import/export unchanged; `.stem.mp4` playback unchanged.
 - **Performance:** separation wall time and peak RSS per model/hardware; playback xrun count at 128-frame buffers; waveform frame time at 4 decks; cache size.
@@ -490,12 +495,12 @@ Two DJ sessions per milestone: one technical (beat alignment, stem bleed, FX, la
 
 | Risk | Impact | Mitigation |
 |---|---|---|
-| Model weights licence (RoFormer/MDX23C/UVR unlicensed; Open-Unmix `umxl` NC) | Legal/distribution blocker | Bundle only MIT/Apache weights (HTDemucs, Beat This!); user-supplied models behind a licence gate; audit in `docs/third-party-models.md` |
+| Model weights license (RoFormer/MDX23C/UVR unlicensed; Open-Unmix `umxl` NC) | Legal/distribution blocker | Bundle only MIT/Apache weights (HTDemucs, Beat This!); user-supplied models behind a license gate; audit in `docs/third-party-models.md` |
 | Apache-2.0/TF, AGPLv3, GPLv3 deps (Spleeter, Essentia, aubio) | GPLv2 incompatibility | Reject; document why; keep evaluation-only tools out of the build |
 | Separation too slow on CPU | UX failure | Default ONNX+CoreML/DirectML; fast tier; background queue; show ETA; don't block playback |
 | CPU/thermal spikes during playback | Audio dropouts | Separation always low-priority; limit workers; pre-compute; never decode stems on RT thread |
-| 8-ch FLAC streaming glitches | Playback artefacts | Prefetch/LRU tuning; sequential layout; test HDD/network drives; fallback to premix |
-| Phase/comb filtering when stems are summed after gain/fade | Audible artefacts | Keep per-stem gain/mute in the linear mix; avoid independent per-stem resampling; A/B against the original; document a "sum to original" check |
+| 8-ch FLAC streaming glitches | Playback artifacts | Prefetch/LRU tuning; sequential layout; test HDD/network drives; fallback to premix |
+| Phase/comb filtering when stems are summed after gain/fade | Audible artifacts | Keep per-stem gain/mute in the linear mix; avoid independent per-stem resampling; A/B against the original; document a "sum to original" check |
 | Model update invalidates every cache entry | Re-separation storm | Cache key includes model id + version; migrate old entries lazily; warn in UI; keep previous cache until space pressure |
 | Schema/downgrade data loss | User grids destroyed | BeatGrid-3.0 dual-write; migration tests; backup on upgrade |
 | QML skin scope creep / library parity | Schedule slip | Hybrid shell: keep legacy library/prefs; freeze skin scope at deck/mixer/settings |
@@ -510,8 +515,8 @@ Two DJ sessions per milestone: one technical (beat alignment, stem bleed, FX, la
 
 1. **Code:** ONNX Runtime MIT; demucs-onnx MIT; demucs.cpp MIT; NCNN BSD-3; FFmpeg LGPL (existing); libFLAC BSD (existing); Qt LGPL/GPL (existing). No new GPL-incompatible links.
 2. **Weights:** HTDemucs v4 MIT (code + weights); Beat This! MIT (code + weights); Open-Unmix `umxhq` MIT only; RoFormer/MDX23C/UVR weights **not hosted or bundled** (unlicensed); `umxl` **not** used (CC BY-NC-SA).
-3. **Artifacts:** `docs/third-party-models.md`, NOTICE updates, licence text shown at download, SHA-256, version pinning.
-4. **Datasets:** MUSDB18-HQ only for offline evaluation (research licence); never ship audio or derived weights.
+3. **Artifacts:** `docs/third-party-models.md`, NOTICE updates, license text shown at download, SHA-256, version pinning.
+4. **Datasets:** MUSDB18-HQ only for offline evaluation (research license); never ship audio or derived weights.
 5. **Trademark:** do not use "Traktor" or Native Instruments marks in product copy; describe as "stem separation".
 6. **User content:** generated stems are derivative audio of the user's own files; cache stays local; no upload.
 7. **Export:** the required `.stem.mp4` export must respect the NI Stems format spec and the user's own rights.
@@ -528,22 +533,23 @@ Two DJ sessions per milestone: one technical (beat alignment, stem bleed, FX, la
 | 2 | On-demand separation with an optional batch mode; no auto-separate on import. |
 | 3 | Downbeats/bars are required in v1. |
 | 4 | Traktor interoperability required (`.stem.mp4` export in v1). |
-| 5 | New QML skin is the default and highly customisable. |
+| 5 | New QML skin is the default and highly customizable. |
 | 6 | Windows x64, Linux x64 (+ arm64 where feasible), macOS arm64 + x86_64. |
 | 7 | Models hosted on GitHub Releases, download-only (nothing in installers/git). |
 | 8 | Rebrand as **Paramix**. |
+| 9 | Model release assets live in a dedicated **`paramix-models`** repository. |
+| 10 | Migrate the data directory to **`~/.paramix`** with a first-run wizard and a downgrade path. |
+| 11 | Version from **`0.1`** with milestone releases. |
+| 12 | GPU acceleration **auto-enabled with a CPU opt-out**. |
+| 13 | `.stem.mp4` codec is **user-selectable (ALAC or AAC)** in Settings. |
 
 ### Still open (defaults I will assume if you do not object)
 
-1. **GitHub namespace:** model assets on the existing `Sl1pstr3am/paramix` Releases or a dedicated `paramix-models` repo? *Default: dedicated `paramix-models` repo so model releases don't bloat the app repo.*
-2. **Data directory:** keep `~/.mixxx` (brand-only, recommended) or migrate to `~/.paramix` with a wizard? *Default: brand-only in v1.*
-3. **Fork version/cadence:** start at `0.1` and release on milestones? *Default: 0.1, milestone releases.*
-4. **GPU policy:** enable CoreML/DirectML automatically with opt-out? Minimum macOS/Windows versions and Linux distro matrix? *Default: auto with opt-out; macOS 13+, Windows 10 21H2+, Ubuntu 22.04+/Fedora 39+.*
-5. **`.stem.mp4` codec:** ALAC (lossless, larger) or AAC 256 (smaller, lossy) default? *Default: ALAC, with AAC as an option.*
-6. **Max-quality tier:** user-supplied RoFormer in v1 or v1.1? *Default: v1.1.*
-7. **Customisation depth:** tokens/layout variants only, or full runtime QML overrides with a stability promise? *Default: full overrides, documented as experimental for one release.*
-8. **Name/domain/icon clearance** for Paramix and upstream attribution text. *Action: confirm before Phase 5 packaging.*
-9. **Telemetry/crash reporting:** none by default? *Default: none; opt-in later.*
+1. **Supported OS floor:** *Default: macOS 13+, Windows 10 21H2+, Ubuntu 22.04+/Fedora 39+.* (GPU auto-enable is already decided; only the floor and the Linux distro matrix remain.)
+2. **Max-quality tier:** user-supplied RoFormer in v1 or v1.1? *Default: v1.1.*
+3. **Customisation depth:** tokens/layout variants only, or full runtime QML overrides with a stability promise? *Default: full overrides, documented as experimental for one release.*
+4. **Name/domain/icon clearance** for Paramix and upstream attribution text. *Action: confirm before Phase 5 packaging.*
+5. **Telemetry/crash reporting:** none by default? *Default: none; opt-in later.*
 
 ---
 
@@ -554,11 +560,11 @@ Two DJ sessions per milestone: one technical (beat alignment, stem bleed, FX, la
 **Days 3–5 (spikes):**
 - A3: export `htdemucs_ft` to ONNX; run a 4-min track on M-series CPU + CoreML and on Windows CPU; record wall time/RSS/SDR. Dry-run the GitHub Releases manifest/download path.
 - A7/A9: branding inventory (name, icons, bundle IDs, desktop entry) and the model-manifest ADR.
-- A2: run Beat This! ONNX on 10 labelled tracks; compute F-measure vs Queen Mary.
+- A2: run Beat This! ONNX on 10 labeled tracks; compute F-measure vs Queen Mary.
 - A4: write/read an 8-channel FLAC; verify `SoundSourceFLAC` 8-ch playback through `EngineDeck`.
 - A6: prototype 4-lane renderer geometry and measure frame time.
 
-**Days 6–8 (contracts):** ADRs 001–005 (runtime/model, cache, grid, UI/customisation, model distribution); `src/stems/` headers; `BeatGrid-3.0` proto; schema draft; model manifest schema; `docs/third-party-models.md` skeleton.
+**Days 6–8 (contracts):** ADRs 001–005 (runtime/model, cache, grid, UI/customization, model distribution); `src/stems/` headers; `BeatGrid-3.0` proto; schema draft; model manifest schema; `docs/third-party-models.md` skeleton.
 
 **Days 9–10 (skeleton):** CMake flags; `StemCache` read/write with a dummy separator; BeatGrid-3.0 serialization test; design tokens + `res/skins/Paramix/skin.ini` + `main.qml` shell with Paramix branding; nightly CI.
 
@@ -591,7 +597,7 @@ Two DJ sessions per milestone: one technical (beat alignment, stem bleed, FX, la
 - demucs.cpp (MIT, CPU/ggml): https://github.com/sevagh/demucs.cpp
 - xLights HTDemucs C++/ONNX Runtime precedent (`src-core/media/StemSeparator.cpp`): https://github.com/xLightsSequencer/xLights
 - BS-RoFormer reference code (MIT): https://github.com/lucidrains/BS-RoFormer
-- Community RoFormer weights (no licence file — do not bundle): https://github.com/TRvlvr/model_repo
+- Community RoFormer weights (no license file — do not bundle): https://github.com/TRvlvr/model_repo
 - Music-Source-Separation-Training (MIT tooling): https://github.com/ZFTurbo/Music-Source-Separation-Training
 - Spleeter (MIT; TensorFlow — GPLv2 conflict): https://github.com/deezer/spleeter
 - Open-Unmix (`umxhq` MIT, `umxl` CC BY-NC-SA): https://github.com/sigsep/open-unmix-pytorch
@@ -612,4 +618,4 @@ Two DJ sessions per milestone: one technical (beat alignment, stem bleed, FX, la
 - djay Neural Mix: https://help.algoriddim.com/topic/hardware/using-neural-mix-on-supported-controllers
 - VirtualDJ stem/EQ modes: https://virtualdj.com/manuals/virtualdj/interface/mixer/audio.html
 - 2025 stem quality comparison: https://www.digitaldjtips.com/best-sounding-stems-2025/
-- Live stem latency/artefacts: https://dj.studio/blog/live-stem-separation-latency-artifacts-failsafes
+- Live stem latency/artifacts: https://dj.studio/blog/live-stem-separation-latency-artifacts-failsafes

@@ -1,86 +1,133 @@
-# Mixxx
+# Paramix
 
-[![GitHub latest tag](https://img.shields.io/github/tag/mixxxdj/mixxx.svg)](https://mixxx.org/download)
-[![Packaging status](https://repology.org/badge/tiny-repos/mixxx.svg)](https://repology.org/metapackage/mixxx/versions)
-[![Build status](https://github.com/mixxxdj/mixxx/actions/workflows/build.yml/badge.svg)](https://github.com/mixxxdj/mixxx/actions/workflows/build.yml)
-[![Coverage status](https://coveralls.io/repos/github/mixxxdj/mixxx/badge.svg)](https://coveralls.io/github/mixxxdj/mixxx)
-[![Zulip chat](https://img.shields.io/badge/zulip-join_chat-brightgreen.svg)](https://mixxx.zulipchat.com)
-[![Donate](https://img.shields.io/opencollective/all/mixxx?label=Donate)](https://mixxx.org/donate)
+[![CI](https://github.com/christianstuart/paramix/actions/workflows/ci.yml/badge.svg)](https://github.com/christianstuart/paramix/actions/workflows/ci.yml)
+[![License: GPL v2](https://img.shields.io/badge/license-GPL--2.0-blue.svg)](LICENSE)
 
-[Mixxx] is Free DJ software that gives you everything you need to perform live
-DJ mixes. Mixxx works on GNU/Linux, Windows, and macOS.
+**Paramix is free, open-source DJ software built around stems.** Load any track, split it into
+drums, bass, vocals and the rest, then mix those parts live — acapellas, instrumentals, stem
+effects and four-lane waveforms, without ever sending your music to a server.
 
-## Quick Start
+Paramix runs on Windows, GNU/Linux and macOS (Apple Silicon and Intel).
 
-To get started with Mixxx:
+- **Version:** 0.1 (based on Mixxx 2.7.0)
+- **License:** GPL-2.0
+- **Status:** active development on `main`
 
-1. For live use, [download the latest stable version][download-stable].
-2. For experimentation and testing, [download a development release][download-testing].
-3. To live on the bleeding edge, clone the repo: `git clone https://github.com/mixxxdj/mixxx.git`
+## Features
 
-## Bug tracker
+### Stem separation
 
-The Mixxx team uses [Github Issues][issues] to manage Mixxx development.
+- Four stems — drums, bass, vocals, other — generated locally from any supported audio file.
+- High-quality **HTDemucs** separation by default, with an optional higher-quality model tier.
+- Runs **on demand** or as a **batch job** across a selection of tracks, with progress, pause,
+  cancel and resume. Separation happens in the background and never blocks playback.
+- Results are cached on disk, so a separated track loads instantly the next time.
+- **GPU acceleration** (CoreML on macOS, DirectML/CUDA on Windows, CUDA on Linux) with a CPU
+  fallback and an opt-out in Settings.
+- **Model downloads only:** the separation models are fetched once from the Paramix model
+  releases with SHA-256 verification and an MIT license prompt. Nothing is bundled in the
+  installer, and audio never leaves your machine. Offline installs are supported through
+  "Install from file" in Settings.
 
-Have a bug or feature request? [File a bug on Github][fileabug].
+### Stem mixing and waveforms
 
-Want to get involved in Mixxx development? Assign yourself a bug from the [easy
-bug list][easybugs] and get started!
+- Per-stem **gain, mute, solo and QuickFX** on every deck, with smooth, click-free changes.
+- **Four-lane stem waveform** with per-stem labels, colors and mute/solo styling, plus an
+  optional tinted composite mode for compact layouts.
+- Muted stems stay visible but dimmed, so you can see what you are bringing back in.
+- Instant **acapella** and **instrumental** buttons, and per-stem cue/loop behavior.
+- Color-blind-safe stem palette paired with text labels — color is never the only signal.
+- Beatgrid downbeats are accented in the waveform and on the deck.
 
-## Building Mixxx
+### Beatgrid and analysis
 
-Read [CONTRIBUTING.md](CONTRIBUTING.md) for build instructions, code style
-guidelines, and how to open a pull request.
+- Downbeat- and bar-aware beatgrids, with confidence reporting and automatic tempo maps for
+  material that is not a constant 4/4.
+- Modern ML beat and downbeat detection with a fast built-in analyzer as fallback.
+- Non-destructive grid editing: move, scale, shift and set downbeats without flattening a
+  variable-tempo grid, with undo.
+- Bar-aware quantize, loops and sync (optional, off by default).
+- Existing Mixxx libraries, grids, hotcues and Serato-imported metadata open unchanged.
 
-## Documentation
+### Interface
 
-For help using Mixxx, there are a variety of options:
+- New **Paramix QML skin** as the default, with a stem mixer strip, separation status and a
+  dedicated Stems settings page.
+- Highly customizable: design tokens (color, type, spacing, radius, motion), layout variants
+  (2/4 decks, stem lane density, stacked vs tinted waveform), color schemes, and user-loaded
+  QML overrides without recompiling.
+- Minimum 1280×720, HiDPI aware, keyboard and controller accessible, localized interface.
+- Legacy skins remain selectable if you prefer the classic layouts.
 
-- [Mixxx manual][manual]
-- [Mixxx wiki][wiki]
-- [Hardware Compatibility]
-- [Creating Skins]
+### Traktor interoperability
 
-## Translation
+- Reads and writes NI **`.stem.mp4`** files, so stems move between Paramix and Traktor.
+- Export codec is selectable in Settings (lossless ALAC or smaller AAC), with the size and time
+  trade-off shown before export.
+- Round-trip is validated, and files generated by either application load in the other.
 
-Help to spread Mixxx with translations into more languages, as well as to update and ensure the accuracy of existing translations.
+### Everything else a DJ needs
 
-- [Help translate content]
-- [Mixxx i18n wiki]
-- [Mixxx localization forum]
-- [Mixxx glossary]
+Paramix inherits the full Mixxx feature set: a library with smart crates and metadata editing,
+MIDI/HID controller support with hundreds of community mappings, timecode vinyl control,
+effects chains, recording, live broadcasting, and a broadcast-quality audio engine with
+low-latency, real-time-safe playback.
 
-## Community
+## Quick start
 
-Mixxx is a vibrant community of hackers, DJs and artists. To keep track of
-development and community news:
+Build from source (see [Building](#building)), then:
 
-- Chat with us on [Zulip][zulip].
-- Follow us on [Mastodon], [Bluesky] and [Facebook].
-- Subscribe to the [Mixxx Blog][blog].
-- Post on the [Mixxx forums][discourse].
+1. Open **Settings → Stems** and download the separation model once.
+2. Right-click a track (or a selection) in the library and choose **Separate stems**.
+3. Load the track, then mix the four stem channels with the deck's stem strip.
+
+Separation runs in the background; the track shows its progress in the library and becomes
+playable immediately with the original mix until the stems are ready.
+
+## Platforms
+
+| Platform | Status |
+|---|---|
+| Windows 10 21H2+ / 11 (x64) | supported |
+| macOS 13+ (Apple Silicon and Intel) | supported |
+| GNU/Linux x64 (and arm64 where the toolchain allows) | supported |
+
+Separation requires a one-time model download. Everything else works offline out of the box.
+
+## Building
+
+Read [CONTRIBUTING.md](CONTRIBUTING.md) for build instructions, dependency setup per platform,
+code style and pull-request guidelines. In short:
+
+```bash
+git clone https://github.com/christianstuart/paramix.git
+cd paramix
+cmake -S . -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo
+cmake --build build --parallel
+ctest --test-dir build --output-on-failure
+```
+
+Continuous integration builds and tests every push on Windows x64, Linux x64, macOS arm64 and
+macOS x86_64. `tools/paramix_verify.sh` runs the same repository checks locally.
+
+## Bug tracker and contributing
+
+Development happens in [GitHub Issues](https://github.com/christianstuart/paramix/issues). Bug
+reports, controller mappings, translations and skin contributions are welcome — please open an
+issue first for large changes so the design can be agreed before code is written.
+
+## Based on Mixxx
+
+Paramix is a fork of [Mixxx](https://mixxx.org), the free DJ software, and keeps its GPL-2.0
+license, copyright notices and architecture. Much of the workflow will look familiar to Mixxx
+users, and the [Mixxx manual](https://manual.mixxx.org/) remains a useful reference for shared
+features such as the library, controller setup and preferences.
+
+Paramix is an independent project: it is not affiliated with or endorsed by the Mixxx project,
+and Mixxx trademarks belong to their respective owners.
 
 ## License
 
-Mixxx is released under the GPLv2. See the LICENSE file for a full copy of the
-license.
-
-[mixxx]: https://mixxx.org
-[download-stable]: https://mixxx.org/download/#stable
-[download-testing]: https://mixxx.org/download/#testing
-[issues]: https://github.com/mixxxdj/mixxx/issues
-[fileabug]: https://github.com/mixxxdj/mixxx/issues/new/choose
-[mastodon]: https://floss.social/@mixxx
-[Bluesky]: https://bsky.app/profile/mixxx.bsky.social
-[facebook]: https://www.facebook.com/pages/Mixxx-DJ-Software/21723485212
-[blog]: https://mixxx.org/news/
-[manual]: https://manual.mixxx.org/
-[wiki]: https://github.com/mixxxdj/mixxx/wiki
-[easybugs]: https://github.com/mixxxdj/mixxx/issues?q=is%3Aopen+is%3Aissue+label%3Aeasy
-[creating skins]: https://mixxx.org/wiki/doku.php/Creating-Skins
-[help translate content]: https://explore.transifex.com/mixxx-dj-software/
-[Mixxx i18n wiki]: https://github.com/mixxxdj/mixxx/wiki/Internationalization
-[Mixxx localization forum]: https://mixxx.discourse.group/c/translation/13
-[hardware compatibility]: https://manual.mixxx.org/2.3/en/hardware/manuals.html
-[zulip]: https://mixxx.zulipchat.com/
-[discourse]: https://mixxx.discourse.group/
+Paramix is released under the **GNU General Public License v2.0**. See [LICENSE](LICENSE) for the
+full text. As a derivative work of Mixxx, Paramix is distributed under the same license, and the
+corresponding source is available in this repository.

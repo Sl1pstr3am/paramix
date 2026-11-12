@@ -21,7 +21,7 @@ into a commercial-grade DJ application with four headline features:
 4. A general UI overhaul, rebranded as **Paramix** (new QML skin as default).
 
 - Local path: `/Users/christianstuart/Documents/paramix`
-- Remote: `https://github.com/Sl1pstr3am/paramix` (branch `main`) — **public** as of 2026-11-11
+- Remote: `https://github.com/christianstuart/paramix` (branch `main`) — **public** as of 2026-11-11
 - No `upstream` remote by explicit user request: **do not sync with mixxxdj/mixxx.**
   The imported tree is the source of truth.
 - Upstream basis recorded as "Mixxx 2.7.0-alpha"; keep GPL notices and attribution.
@@ -30,6 +30,20 @@ into a commercial-grade DJ application with four headline features:
 required. Architecture conventions still apply: `ControlObject`/`ControlProxy` with
 `[Group], key_name`; the engine thread is real-time (no allocation/locks, may emit but not
 receive Qt signals); `parented_ptr`/`make_parented` for Qt ownership.
+
+### 1.1 Writing conventions (apply to every text file from now on)
+
+- **American English spelling** in all prose: `color`, `behavior`, `license`, `customize`,
+  `customizable`, `analyze`, `analyzer`, `canceled`, `labeled`, `localized`, `normalize`,
+  `artifact`, `center`, `optimize`, `modeling`, `gray`. This covers docs, README, code
+  comments, commit messages and PR text. Do not rename existing code identifiers to match —
+  only prose.
+- **Repository owner is `christianstuart`** (renamed from `Sl1pstr3am` on 2026-11-11). Use
+  `christianstuart/paramix` and `github.com/christianstuart/...` in every new link, badge, git
+  remote and `gh` command. Old URLs redirect, but never write new ones with the old name.
+- **`docs/old-context.md` is a verbatim historical transcript** and is exempt: it keeps its
+  British spelling and the pre-rename username. Do not "fix" it, and do not treat its wording
+  as the project's style.
 
 ---
 
@@ -41,17 +55,27 @@ receive Qt signals); `parented_ptr`/`make_parented` for Qt ownership.
 | 2 | Separation on demand + optional batch; **no** auto-separate on import |
 | 3 | Downbeats/bars are **required in v1** |
 | 4 | `.stem.mp4` **export** (Traktor interop) in v1 |
-| 5 | New **Paramix QML skin** is default and highly customisable |
+| 5 | New **Paramix QML skin** is default and highly customizable |
 | 6 | Windows x64, Linux x64 (+arm64 where feasible), macOS arm64 **and** x86_64 |
-| 7 | Models are **download-only via GitHub Releases**; nothing in git or installers (MIT licence prompt, SHA-256, resume, install-from-file) |
+| 7 | Models are **download-only via GitHub Releases**; nothing in git or installers (MIT license prompt, SHA-256, resume, install-from-file) |
 | 8 | Rebrand as **Paramix**; brand-only in v1 (keep `~/.mixxx` data dir) |
 
 Program option chosen: **B "Traktor-class"** (~20–24 weeks, 6–8 agents), with Option A as the
 first shippable milestone. Option C (real-time separation) is a deferred spike.
 
-Still-open defaults (plan §11): dedicated `paramix-models` release repo; `0.1` versioning;
-auto GPU with opt-out (macOS 13+, Win10 21H2+, Ubuntu 22.04+/Fedora 39+); ALAC default for
-`.stem.mp4`; RoFormer "Max" tier in v1.1; full runtime QML overrides (experimental); no telemetry.
+Decisions resolved on 2026-11-11 (supersede the plan's §11 defaults):
+
+| # | Decision |
+|---|---|
+| 9 | **Model hosting:** dedicated `paramix-models` repository (keeps 630 MB assets out of the app repo/releases) |
+| 10 | **Data directory:** **migrate to `~/.paramix`** with a first-run migration wizard (supersedes the plan's brand-only default); keep a downgrade fallback |
+| 11 | **Versioning:** start at `0.1`, milestone releases (`0.1`, `0.2`, …); About shows "based on Mixxx 2.7.0" |
+| 12 | **GPU:** auto-enable CoreML/DirectML/CUDA with a CPU opt-out in Settings |
+| 13 | **`.stem.mp4` codec:** user-selectable in Settings (ALAC or AAC), not a fixed default; export dialog must show size/time trade-off |
+| 14 | **Local toolchain:** install Qt 6 via MacPorts on this workstation so builds can be verified locally |
+
+Still-open defaults: RoFormer "Max" tier in v1.1; full runtime QML overrides (experimental);
+no telemetry; macOS 13+ / Win10 21H2+ / Ubuntu 22.04+ / Fedora 39+ as the supported floor.
 
 ---
 
@@ -70,7 +94,7 @@ auto GPU with opt-out (macOS 13+, Win10 21H2+, Ubuntu 22.04+/Fedora 39+); ALAC d
 - **No** CMake, Ninja, Homebrew, clang-format, or Qt. **MacPorts 2.12.6 IS installed** (`port`).
   147 GB free. A local Qt install (`sudo port install qt6 …`) is possible but needs user
   approval and 20–40 min + a 30–60 min compile.
-- `python3` is 3.9.6 (system). `gh` CLI authenticated as `Sl1pstr3am`.
+- `python3` is 3.9.6 (system). `gh` CLI authenticated as `christianstuart`.
 
 ### 3.3 Phase −1 status (baseline gate: "CI green, formatting enforced")
 | Item | Status |
@@ -81,7 +105,7 @@ auto GPU with opt-out (macOS 13+, Win10 21H2+, Ubuntu 22.04+/Fedora 39+); ALAC d
 | Repo hygiene (`.DS_Store`, ignore rules) | **done** |
 | Pre-commit suite usable | **done** — missing root configs added (`.codespellignore`, `.codespellignorelines`, `.cmakelintrc`, `.gersemirc`, `.prettierrc.yaml`, `.markdownlint-cli2.yaml`); `no-commit-to-branch` no longer blocks `main`. `black`/`flake8` hooks need Python ≥3.10 (local 3.9 can't build them; CI 3.12 can) |
 | Local verification harness | **done** — `tools/paramix_verify.sh` (6 checks, PASS/SKIP/FAIL), `tools/paramix_bootstrap.sh` (dry-run by default, `--yes` to install), `docs/baseline-local-verification.md` |
-| CI actually green on 4 targets | **in progress** — runs now execute; `checks` whitespace bug fixed (shallow-clone `HEAD` has no parent, so `git show --check HEAD` flagged the whole import; now `git diff --check HEAD^ HEAD` with `fetch-depth: 2`) |
+| CI actually green on 4 targets | **DONE** — run `43100769404` on `18c817b` is green on all five jobs: `checks`, Linux x64 (**1302/1302 tests**), Windows x64, macOS arm64 (39m49s), macOS x86_64 (1h15m46s). Details in `docs/baseline-report.md` §4. Test binary sets `QT_QPA_PLATFORM=offscreen` itself (`src/test/main.cpp`), so no xvfb is needed |
 
 ### 3.4 Feature work
 **Not started.** Verified absent: `src/stems/`, `SoundSourceStemCache`, `BeatGrid-3.0`,
@@ -100,7 +124,7 @@ auto GPU with opt-out (macOS 13+, Win10 21H2+, Ubuntu 22.04+/Fedora 39+); ALAC d
   `allshader::WaveformRendererStem`, `src/qml/qmlstemsmodel.*`, `WTrackStemMenu`,
   fixtures in `src/test/stems/`.
 - **Beatgrid model is tempo-map capable:** `mixxx::Beats` (`src/track/beats.h`) = markers +
-  terminal tempo; serialised as `BeatGrid-2.0` / `BeatMap-1.0`; `BeatGrid-1.0` readable.
+  terminal tempo; serialized as `BeatGrid-2.0` / `BeatMap-1.0`; `BeatGrid-1.0` readable.
   Detection: `AnalyzerBeats` → Queen Mary or SoundTouch only (string `if/else`, no dynamic
   loading). `BeatUtils` irons beats and snaps BPM heuristically. No downbeats/confidence.
 - **Integration point for generated stems:** hook `SoundSourceProxy::openAudioSource()` (it
@@ -110,7 +134,7 @@ auto GPU with opt-out (macOS 13+, Win10 21H2+, Ubuntu 22.04+/Fedora 39+); ALAC d
   stem renderer is 6 verts × 4 stems × 2 layers = 48 verts/pixel column, CPU-built per frame.
 - **Skin reality:** legacy XML skins are parsed by `legacyskinparser.cpp`; `LateNightQML` is the
   only QML skin; library and preferences are still Qt Widgets (`Library.qml` embeds
-  `Mixxx.LegacyLibraryItem`). QML skin has 0 `qsTr()` calls — localisation debt to fix.
+  `Mixxx.LegacyLibraryItem`). QML skin has 0 `qsTr()` calls — localization debt to fix.
 
 ---
 
@@ -135,8 +159,12 @@ auto GPU with opt-out (macOS 13+, Win10 21H2+, Ubuntu 22.04+/Fedora 39+); ALAC d
    CI**, not from this machine, until Qt is installed.
 7. `docs/old-context.md` is a raw chat transcript (≈1,267 lines, mostly UI padding). Use it only
    for historical intent; the plan document is authoritative.
+8. **`README.md` describes the target feature set as if it already ships.** This is an explicit
+   owner decision (2026-11-11), not an oversight. Do not treat the README as a specification or
+   as evidence that a feature exists — check the plan (§1 acceptance criteria) and the code.
+   When a feature lands, verify the README claim still matches the implementation.
 8. `concurrency: cancel-in-progress: true` works: a new push cancels the previous run's jobs,
-   which can look like a spurious "cancelled" status.
+   which can look like a spurious "canceled" status.
 
 ---
 
@@ -144,7 +172,7 @@ auto GPU with opt-out (macOS 13+, Win10 21H2+, Ubuntu 22.04+/Fedora 39+); ALAC d
 
 1. **Watch CI to green on all four targets.** `checks` + `Linux x64` first (Linux also runs
    `ctest`), then macOS arm64, macOS x86_64, Windows x64. Diagnose failures from job logs:
-   `gh run view --log --job <job-id> -R Sl1pstr3am/paramix`.
+   `gh run view --log --job <job-id> -R christianstuart/paramix`.
 2. Revisit the macOS x86_64 `-DQML=OFF` gap once the first build is green.
 3. Write `docs/baseline-report.md`: baseline commit, toolchain versions, CI evidence (or the
    documented gap), and the exact gate status per target.
@@ -160,10 +188,10 @@ auto GPU with opt-out (macOS 13+, Win10 21H2+, Ubuntu 22.04+/Fedora 39+); ALAC d
 cd /Users/christianstuart/Documents/paramix
 
 # CI state
-gh run list -R Sl1pstr3am/paramix -L 5
-gh api repos/Sl1pstr3am/paramix/actions/runs/<id>/jobs \
+gh run list -R christianstuart/paramix -L 5
+gh api repos/christianstuart/paramix/actions/runs/<id>/jobs \
   --jq '.jobs[] | "\(.name): \(.status) \(.conclusion // "")"'
-gh workflow run ci.yml -R Sl1pstr3am/paramix
+gh workflow run ci.yml -R christianstuart/paramix
 
 # Local checks (no Qt needed)
 python3 -c "import yaml;yaml.safe_load(open('.github/workflows/ci.yml'))"
@@ -201,8 +229,12 @@ Shared single-owner files (route through A0): `CMakeLists.txt`, `res/schema.xml`
 - **2026-11-11** — `2ef4670`: removed phantom `-DQT6=ON`, dropped `WARNINGS_FATAL`, PEP 668
   fallback for pyyaml, per-job timeouts, ccache on Linux + both macOS jobs, untracked
   `.DS_Store`, ignored `.DS_Store`.
+- **2026-11-11** — `macos-x64` timeout raised **90 → 120 min**. On the `macos-15-intel` runner a
+  clean configure took 13m54s and the build was still running at 42 minutes, versus 26m16s for
+  the full arm64 build — Intel is ~1.6–2.2× slower on this tree. Current timeouts:
+  `checks` 10, `linux` 75, `macos-arm64` 90, `macos-x64` 120, `windows-x64` 90.
 - **2026-11-11** — Audits completed: dotfiles parse and are coherent (clang-format 19.1.3
-  compatible, `.gitattributes` does not normalise binary fixtures, `/models/` and `/stems/`
+  compatible, `.gitattributes` does not normalize binary fixtures, `/models/` and `/stems/`
   root-anchored and effective). Pre-commit suite identified as broken (missing 6 root configs,
   `no-commit-to-branch` blocks `main`).
 - **2026-11-11** — `55c4b11`: whitespace gate scoped to the tip commit; `actions/checkout@v5`.
@@ -211,7 +243,36 @@ Shared single-owner files (route through A0): `CMakeLists.txt`, `res/schema.xml`
 - **2026-11-11** — Pre-commit repaired: six root configs added, codespell scoped away from
   vendored `res/controllers` and `res/translations`, `no-commit-to-branch` retargeted to
   semver release branches. All fixer hooks verified idempotent (two passes each, zero diffs).
-  One real first-party typo remains unsuppressed: "Windos" in `docs/old-context.md` (kept as an
-  exact-line exclusion with a FIXME; fix the doc, then delete the entry).
+  One real first-party typo remains unsuppressed: a misspelled "Windows" in
+  `docs/old-context.md` (kept as an exact-line exclusion with a FIXME; fix the doc, then delete
+  the entry).
 - **2026-11-11** — Local harness landed: `tools/paramix_verify.sh` reports PASS with one SKIP
   (clang-format) on a clean tree; its whitespace check was aligned with CI semantics.
+- **2026-11-11** — Decisions 9–14 recorded and folded into the plan (§0 table, §6.9, §11):
+  `paramix-models` release repo, `~/.paramix` migration, 0.1 milestone versioning, GPU auto
+  with opt-out, user-selectable export codec, local Qt via MacPorts.
+- **2026-11-11** — **README rebranded** to Paramix: stem/beatgrid/UI feature set, platform
+  table, build instructions, GPL-2.0 attribution and a "Based on Mixxx" section. Build badge
+  points at this repo's `ci.yml`; license badge added. Upstream download/donate/Zulip/forum/
+  Transifex links removed; the Mixxx manual link is kept and labeled as upstream documentation.
+  Per owner decision the README presents the full vision as current — see gotcha 8.
+- **2026-11-11** — CI formatting gate added to the `checks` job (clang-format 19.1.3,
+  changed C++ files only, `--diff-filter=ACMR`, vendored/generated paths excluded).
+- **2026-11-11** — **Baseline closed.** Run `43100769404` on `18c817b` finished green on all five
+  jobs; macOS x86_64 landed last at 1h15m46s (14 min under the old 90-minute limit). Recorded in
+  `docs/baseline-report.md` §4. Two follow-ups it surfaced: `macos-x64` timeout is now 120 min
+  (comment cites the measured 2.3× Intel slowdown), and enabling `-DQML=ON` on x86_64 would add
+  ~11 min there, so it must land separately with that timeout in place.
+- **2026-11-11** — Scratch worktree for the stem waveform: branch `feature/stem-waveform` at
+  `/Users/christianstuart/.local/share/opencode/worktree/83d739/stem-waveform`, cut from
+  `18c817b`. It exists so feature work cannot entangle the baseline commit; it needs rebasing
+  onto `main` before use.
+- **2026-11-11** — GitHub owner renamed `Sl1pstr3am` → **`christianstuart`**. Updated the git
+  remote, README badges/links/clone URL, and every `gh`/repository reference in the plan,
+  context doc and baseline report. `docs/old-context.md` intentionally left as historical record.
+- **2026-11-11** — House style switched to **American English** for all text files; existing
+  README, plan, context doc and baseline report converted. Convention recorded in §1.1.
+- **2026-11-11** — `README.md` was found replaced on disk by `README.rtf` (an editor saved it as
+  rich text). Recovered from the `.rtf` content, rewritten as Markdown with the new owner name
+  and American spelling. The stray `README.rtf` was left in place (untracked) for the owner to
+  delete; do not commit it.
