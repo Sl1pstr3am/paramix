@@ -173,6 +173,12 @@ no telemetry; macOS 13+ / Win10 21H2+ / Ubuntu 22.04+ / Fedora 39+ as the suppor
 9. **A second contributor team works in this repo concurrently.** `docs/parallel-work.md` defines
    file ownership and the claimable workstreams. Before editing anything outside the main
    workstream's paths, check its ownership map; never push to `main` from a contributor branch.
+10. **The beatgrid has no downbeat field, and a new `beats_version` string is destructive.** An
+    unrecognized version makes `trackdao` synthesize a frame-0 grid and save it over the real blob
+    (`trackdao.cpp:1292-1296`, `beats.cpp:266-270`). Extend the proto additively and keep the
+    version strings. Details and the ordered work list: `docs/beatgrid-audit.md`.
+11. **`lib/qm-dsp/dsp/tempotracking/DownBeat.cpp` is already compiled and unused** — a working
+    downbeat detector sits in the binary today. Do not treat downbeat detection as greenfield.
 
 ---
 
@@ -299,6 +305,19 @@ Shared single-owner files (route through A0): `CMakeLists.txt`, `res/schema.xml`
   main workstream's files, an ownership map, verification commands and coordination protocol.
   Contributor branches use `bradley/<topic>` and PRs; direct pushes to `main` cancel in-flight CI.
   The stray `README.rtf` was moved out of the tree to `$TMPDIR/README.rtf.bak` (not committed).
+- **2026-11-12** — Branch protection enabled on `main`: PR plus all five checks, no force push,
+  no deletion, unresolved conversations block merge, admins included. Verified by a rejected direct
+  push (GH006) and by PR #1, where every required check reports. `docs/parallel-work.md` and this
+  file updated; the "commit directly to main" rule is superseded.
+- **2026-11-12** — **Beatgrid audit** written to `docs/beatgrid-audit.md` from two source audits
+  plus verification. Findings: no downbeat/bar/meter field anywhere; `BeatMarker` has two fields;
+  protobuf has no bar attribute; qm-dsp `DownBeat.cpp` is compiled into the binary and unused, and
+  needs only a decimating audio sink plus a 48 kHz step-size fix; `BeatUtils::makeConstBpm`
+  re-anchors the grid and discards the detected downbeat; an unrecognized `beats_version` makes
+  `trackdao` replace the grid with a frame-0 placeholder and persist it, so new fields must be
+  additive under the existing version strings; Rekordbox `beat_number` is imported and discarded;
+  no inference runtime or bundled-model precedent exists. Recommendation: DSP baseline first, ML
+  downbeats as a separate later decision.
 - **2026-11-11** — GitHub owner renamed `Sl1pstr3am` → **`christianstuart`**. Updated the git
   remote, README badges/links/clone URL, and every `gh`/repository reference in the plan,
   context doc and baseline report. `docs/old-context.md` intentionally left as historical record.
