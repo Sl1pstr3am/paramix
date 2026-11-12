@@ -165,20 +165,25 @@ no telemetry; macOS 13+ / Win10 21H2+ / Ubuntu 22.04+ / Fedora 39+ as the suppor
    When a feature lands, verify the README claim still matches the implementation.
 8. `concurrency: cancel-in-progress: true` works: a new push cancels the previous run's jobs,
    which can look like a spurious "canceled" status.
+9. **A second contributor team works in this repo concurrently.** `docs/parallel-work.md` defines
+   file ownership and the claimable workstreams. Before editing anything outside the main
+   workstream's paths, check its ownership map; never push to `main` from a contributor branch.
 
 ---
 
-## 6. Phase −1 remaining work (in priority order)
+## 6. Next work (in priority order)
 
-1. **Watch CI to green on all four targets.** `checks` + `Linux x64` first (Linux also runs
-   `ctest`), then macOS arm64, macOS x86_64, Windows x64. Diagnose failures from job logs:
-   `gh run view --log --job <job-id> -R christianstuart/paramix`.
-2. Revisit the macOS x86_64 `-DQML=OFF` gap once the first build is green.
-3. Write `docs/baseline-report.md`: baseline commit, toolchain versions, CI evidence (or the
-   documented gap), and the exact gate status per target.
-4. Then Phase 0: ADRs 001–005, plus the five spikes in plan §7.3
-   (ONNX htdemucs_ft benchmark, Beat This! F-measure, 8-ch FLAC round-trip, 4-lane 60 fps
-   prototype, GitHub Releases model-download dry run).
+Phase −1 is closed (see §4 and `docs/baseline-report.md`). Remaining, in order:
+
+1. **Phase 0 ADRs 001–005**, then the five spikes in plan §7.3 (ONNX `htdemucs_ft` benchmark,
+   Beat This! F-measure, 8-channel FLAC round-trip, four-lane 60 fps check, GitHub Releases
+   model-download dry run). The stem/waveform inventory is already done — do not redo it.
+2. **Local toolchain.** The owner is installing Qt 6 via MacPorts. Until that finishes, spikes that
+   need a real build cannot be measured; do documentation and audit work first.
+3. **Correct any remaining "build it from scratch" assumptions** in the plan or issues. The tree
+   already has per-stem waveform rendering, stem controls and `.stem.mp4` reading.
+4. Revisit the macOS x86_64 `-DQML=OFF` gap as its own scoped commit, with the 120-minute timeout
+   already in place.
 
 ---
 
@@ -284,6 +289,11 @@ Shared single-owner files (route through A0): `CMakeLists.txt`, `res/schema.xml`
   §7.3 marks Phase −1 done and drops the withdrawn "add `upstream` remote" step, and the 2.1/2.2
   contents no longer include building a stem renderer that already exists. The plan's original
   §0 and §3.2 already stated that the playback half exists — that part needed no correction.
+- **2026-11-12** — Added `docs/parallel-work.md` for a second contributor team (Bradley's agents):
+  ground rules, the "don't rebuild this" inventory, six claimable workstreams chosen to avoid the
+  main workstream's files, an ownership map, verification commands and coordination protocol.
+  Contributor branches use `bradley/<topic>` and PRs; direct pushes to `main` cancel in-flight CI.
+  The stray `README.rtf` was moved out of the tree to `$TMPDIR/README.rtf.bak` (not committed).
 - **2026-11-11** — GitHub owner renamed `Sl1pstr3am` → **`christianstuart`**. Updated the git
   remote, README badges/links/clone URL, and every `gh`/repository reference in the plan,
   context doc and baseline report. `docs/old-context.md` intentionally left as historical record.
