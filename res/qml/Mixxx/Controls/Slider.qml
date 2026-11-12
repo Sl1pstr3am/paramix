@@ -45,9 +45,6 @@ Item {
     Accessible.value: root.value
     Accessible.minimumValue: root.from
     Accessible.maximumValue: root.to
-    Accessible.stepSize: Math.abs(root.stepSize || root.wheelStepSize)
-    Accessible.onIncreaseAction: root.moved(root.stepValue(1))
-    Accessible.onDecreaseAction: root.moved(root.stepValue(-1))
 
     function applyInteractiveValue(targetValue, isFinal) {
         dragHandler.value = clamp(snapValue(targetValue, isFinal));
