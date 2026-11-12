@@ -40,12 +40,15 @@ Three findings shape the plan:
 
 ## 1. The brief, decomposed into acceptance criteria
 
-| # | Outcome | Measurable acceptance |
-|---|---|---|
-| O1 | **Beatgrid engine** | Downbeat-aware grids; accuracy beats Queen Mary on a labeled fixture set (beat F ≥ 0.90 electronic / ≥ 0.85 mixed repertoire, downbeat F ≥ 0.75); variable-tempo detection for non-4/4 material; non-destructive edits; old libraries open unchanged. |
-| O2 | **Stem separation** | 4 stems (drums/bass/vocals/other) from any supported audio file, fully offline after the one-time model download; default **`htdemucs_ft`** quality (MUSDB SDR ≈ 9.2 dB avg; vocals ≥ 8.0 dB); on-demand and batch jobs with progress/cancel/resume; cached so the second load is instant; per-stem gain/mute/solo/FX; instant acapella/instrumental buttons; **required** `.stem.mp4` export for Traktor; ~2 min per 4-min track on M-series CPU, seconds with CoreML/DirectML. |
-| O3 | **4-stem waveform** | Each stem visible as its own labeled, colored lane **and** as a tinted composite (both modes), reacting to mute/solo/gain; muted stems stay visible but dimmed; downbeat accents visible; 60 fps with 4 decks at 1080p; no audio-thread stalls. |
-| O4 | **UI overhaul** | A coherent, rebranded **Paramix** QML skin as the default (deck, stem mixer, library badges, settings), highly customizable via design tokens/layout variants/color schemes; color-blind-safe stem palette + labels; keyboard/controller accessible; localized; responsive at 1280×720 and up on Windows, Linux, macOS arm64 and macOS x86_64. |
+The **Status today** column is the important one: it records what the imported tree already
+provides, so phases below plan integration and polish rather than rebuilding working code.
+
+| # | Outcome | Measurable acceptance | Status today (2026-11-11) |
+|---|---|---|---|
+| O1 | **Beatgrid engine** | Downbeat-aware grids; accuracy beats Queen Mary on a labeled fixture set (beat F ≥ 0.90 electronic / ≥ 0.85 mixed repertoire, downbeat F ≥ 0.75); variable-tempo detection for non-4/4 material; non-destructive edits; old libraries open unchanged. | **Not started.** `Beats` stores 0..N markers + one tempo marker and has no downbeat, bar, meter or confidence field; detection is Queen Mary or SoundTouch, no ML. This is genuine new work. |
+| O2 | **Stem separation** | 4 stems (drums/bass/vocals/other) from any supported audio file, fully offline after the one-time model download; default **`htdemucs_ft`** quality (MUSDB SDR ≈ 9.2 dB avg; vocals ≥ 8.0 dB); on-demand and batch jobs with progress/cancel/resume; cached so the second load is instant; per-stem gain/mute/solo/FX; instant acapella/instrumental buttons; **required** `.stem.mp4` export for Traktor; ~2 min per 4-min track on M-series CPU, seconds with CoreML/DirectML. | **Not started for generation.** Playback, per-stem mixing and FX of *existing* `.stem.mp4` files already work (§3.2), so the new work is inference, cache, model manager, batch jobs, library status and export — not the mixer. |
+| O3 | **4-stem waveform** | Each stem visible as its own labeled, colored lane **and** as a tinted composite (both modes), reacting to mute/solo/gain; muted stems stay visible but dimmed; downbeat accents visible; 60 fps with 4 decks at 1080p; no audio-thread stalls. | **Largely present.** `allshader::WaveformRendererStem` already draws per-stem stacked lanes or an overlay, with stem colors and live mute/gain, and `WaveformData::stems[4]` is already populated by `AnalyzerWaveform` from an 8-channel source (§3.3). Remaining: tinted **composite** mode, downbeat accents, and performance validation at 4 decks/1080p. |
+| O4 | **UI overhaul** | A coherent, rebranded **Paramix** QML skin as the default (deck, stem mixer, library badges, settings), highly customizable via design tokens/layout variants/color schemes; color-blind-safe stem palette + labels; keyboard/controller accessible; localized; responsive at 1280×720 and up on Windows, Linux, macOS arm64 and macOS x86_64. | **Not started.** Only `LateNightQML` exists; library and preferences are still Qt Widgets (§3.3). The stem *controls* it will host already exist. |
 
 **What "commercial-grade" means here** (from Traktor/Serato/rekordbox behavior): offline and private; separation runs in the background without touching the audio thread (Traktor Pro 4 uses iZotope RX offline, ~30–60 s per track, right-click per track); results are cached and reusable (Serato pre-computes a "Stems crate" in ~20 s per track and stores roughly 5× an MP3 per track); stems are individually mixable with gain/mute/solo and per-stem FX (rekordbox offers per-stem gain and FX; Traktor keeps FX deck-level); instant "acapella/instrumental" complement buttons; waveforms show the stems legibly in both stacked and tinted modes; the feature survives restarts, library moves, model updates and old projects; no cloud dependency; predictable CPU/storage budgets; and playback stays at 10–20 ms latency with 128–256 frame buffers.
 
@@ -89,15 +92,35 @@ Three findings shape the plan:
 
 - **Rendering:** `allshader::` renderers are `rendergraph` geometry nodes with two backends: QtQuick scene graph (QML skins) and QOpenGL (widget skins). Shaders live in `res/shaders/`. Frames are driven by `VSyncThread` (default 60 fps); each frame rebuilds vertex data into a reused `Geometry`.
 - **Stem renderer today:** overlay (outline + fill per stem) or stacked (`breadth/4` lanes); 6 vertices × 4 stems × 2 layers = **48 vertices per pixel column**, CPU-built per frame. Under the scene-graph backend `kPixelPerStrip = 2`, halving horizontal precision — already a quality compromise.
+- **Stem renderer API (verified 2026-11-11):** `allshader::WaveformRendererStem`
+  (`src/waveform/renderers/allshader/waveformrendererstem.{h,cpp}`, 289 lines) derives from
+  `WaveformRendererSignalBase` **and** `rendergraph::GeometryNode`; it holds
+  `m_pStemGain`/`m_pStemMute` `ControlProxy` vectors, `m_stackOrder` (`QVarLengthArray<int, 4>`),
+  and exposes `setSplitStemTracks`, `setReorderOnChange`, `setOutlineOpacity`, `setOpacity`. It is
+  wrapped for QML as `QML_NAMED_ELEMENT(WaveformRendererStem)`
+  (`src/qml/qmlwaveformrenderer.h:638`, wired in `.cpp:313-349`). Slip mode already draws
+  per-stem boxes (`waveformrendererslipmode.cpp:96-120`). `res/qml/StemKnob.qml` and
+  `res/qml/Deck/HotcueAndStem.qml` provide the control surface.
+  **Consequence:** four labeled lanes, per-stem color and mute/gain-reactive display are existing
+  behavior. What O3 still needs is a tinted **composite** mode, downbeat accents, and a
+  performance budget check — not a new renderer.
 - **Skin system:** legacy XML skins (Deere, LateNight, Tango, Shade) parsed by `legacyskinparser.cpp`; one QML skin (`LateNightQML`) with `skin.ini` + `main.qml` + `MainWindow.qml` (973 lines). **The library and preferences are still Qt Widgets** (`Library.qml` embeds `Mixxx.LegacyLibraryItem`), and preferences are being ported piecemeal (`res/qml/Settings/*`).
 - **Accessibility/localization debt:** effectively no `Accessible.*`/`accessibleName`; the QML skin has 0 `qsTr()` calls (hardcoded English) while the widget UI is fully translated.
 
-### 3.4 Baseline gaps that block multi-agent work
+### 3.4 Baseline status (was: gaps that block multi-agent work)
 
-1. The Mixxx import is untracked; only `README.md` is tracked (and modified).
-2. `.clang-format`, `.pre-commit-config.yaml`, `.gitignore`, `.clang-tidy`, `.github/` are absent — referenced by `CONTRIBUTING.md` but not present.
-3. No CI, so parallel agents cannot verify each other's branches automatically.
-4. `AGENTS.md` policy for this fork allows AI-assisted development and does not require AI disclaimers; the plan still keeps human review for audio quality.
+All four items below were resolved in Phase −1; see `docs/baseline-report.md` for measurements.
+
+1. ~~The Mixxx import is untracked~~ — committed; `main` is at a green, CI-verified commit.
+2. ~~`.clang-format`, `.pre-commit-config.yaml`, `.gitignore`, `.clang-tidy`, `.github/` missing~~ —
+   restored, repaired and verified idempotent.
+3. ~~No CI~~ — five jobs (checks, Linux x64, Windows x64, macOS arm64, macOS x86_64) green on one
+   commit, with a clang-format gate on changed C++ files.
+4. `AGENTS.md` policy for this fork allows AI-assisted development and does not require AI
+   disclaimers; the plan still keeps human review for audio quality.
+
+Remaining baseline-adjacent gaps (not blockers): macOS jobs build but do not run tests, matching
+upstream; macOS x86_64 builds with `-DQML=OFF`; no local Qt toolchain on the owner's workstation.
 
 ---
 
@@ -439,11 +462,11 @@ Critical path: **A3 → A4 → A5 → A6 → integration**. A1/A2 and A7 can run
 
 | Phase | Duration | Agents | Contents | Exit gate |
 |---|---|---|---|---|
-| **−1 Baseline** | 1 wk | A0, A8 | Commit the import; restore `.clang-format`, `.pre-commit-config.yaml`, `.gitignore`, `.github/workflows` from upstream; add `upstream` remote; green build/tests on all four targets (Windows x64, Linux x64, macOS arm64, macOS x86_64) | CI green, formatting enforced |
-| **0 Discovery & spikes** | 2 wks | A0, A2, A3, A6, A8 | ADR-001 runtime/model, ADR-002 cache format, ADR-003 grid format, ADR-004 UI/customization, ADR-005 model distribution; spikes: ONNX `htdemucs_ft` on M-series/Windows/Linux; Beat This! ONNX F-measure; 8-ch FLAC write/read; 4-lane 60 fps prototype; GitHub Releases download dry run | Measured numbers + ADRs accepted |
+| **−1 Baseline** | 1 wk | A0, A8 | **DONE 2026-11-11** (`91b72cd`, `7cbd5fc`). Commit the import; restore `.clang-format`, `.pre-commit-config.yaml`, `.gitignore`, `.github/workflows`; green build/tests on all four targets (Windows x64, Linux x64, macOS arm64, macOS x86_64). No `upstream` remote — the owner's instruction is not to sync with upstream. Measured results in `docs/baseline-report.md`; run `43100769404` green on all five jobs | ✅ CI green, formatting gated |
+| **0 Discovery & spikes** | 2 wks | A0, A2, A3, A6, A8 | ADR-001 runtime/model, ADR-002 cache format, ADR-003 grid format, ADR-004 UI/customization, ADR-005 model distribution; spikes: ONNX `htdemucs_ft` on M-series/Windows/Linux; Beat This! ONNX F-measure; 8-ch FLAC write/read; 4-lane 60 fps prototype; GitHub Releases download dry run. **Stem-layer inventory already done** (§3.2, §3.3) — no need to re-derive what exists | Measured numbers + ADRs accepted |
 | **1 Contracts** | 1 wk | A0 + all | Freeze `StemSeparator`, `StemCache`, `BeatDetector`, `BeatGrid-3.0`, renderer/skin contracts; CMake flags; schema draft; manifest format; fixtures | Interfaces reviewed, skeleton builds |
-| **2.1 Build** | 2 wks | A1–A3, A6–A9 | Grid v3 core + serialization; Beat This! plugin; separator core + dummy model; renderer lane prototype; design tokens + Paramix skin shell + branding inventory; license matrix | Unit tests green; demo of separated fixture |
-| **2.2 Build** | 2 wks | A3–A7 | Cache/DB/jobs (single + batch); `SoundSourceStemCache`; playback verification; 4-lane rendering; stem mixer/status UI; GitHub Releases model download manager | End-to-end: separate → load → 4 stems visible/mixable |
+| **2.1 Build** | 2 wks | A1–A3, A6–A9 | Grid v3 core + serialization; Beat This! plugin; separator core + dummy model; **design tokens + Paramix skin shell + branding inventory**; license matrix. Drop "renderer lane prototype": `WaveformRendererStem` exists (§3.3) | Unit tests green; demo of separated fixture |
+| **2.2 Build** | 2 wks | A3–A7 | Cache/DB/jobs (single + batch); `SoundSourceStemCache`; playback verification; **wire the existing stem renderer to separated sources** (it already handles `.stem.mp4` inputs) plus tinted composite mode; stem mixer/status UI; GitHub Releases model download manager | End-to-end: separate → load → 4 stems visible/mixable |
 | **2.3 Build** | 2 wks | A1, A5, A7, A9 | Downbeats/editor + bar behaviors (v1); `.stem.mp4` export; xrun/latency tuning; settings/library badges; rebrand packaging, installers, signed manifest | Feature-complete, cross-platform builds |
 | **3 Integration** | 2 wks | A0, A8 | Merge freeze, cross-platform QA, cache GC, error paths, upgrade/downgrade tests, Traktor export round-trip | All gates green on all four targets |
 | **4 Hardening** | 2–3 wks | A8 + all | Soak (2 h), CPU/GPU matrices, SDR/F-measure report, human DJ sessions, docs | Beta sign-off |
@@ -542,6 +565,9 @@ Two DJ sessions per milestone: one technical (beat alignment, stem bleed, FX, la
 | 11 | Version from **`0.1`** with milestone releases. |
 | 12 | GPU acceleration **auto-enabled with a CPU opt-out**. |
 | 13 | `.stem.mp4` codec is **user-selectable (ALAC or AAC)** in Settings. |
+| 14 | **Phase −1 complete** on 2026-11-11 (`91b72cd`, `7cbd5fc`): all four build targets green, repository checks enforced, formatting gated. See `docs/baseline-report.md`. |
+| 15 | **No `upstream` remote** and no syncing with mixxxdj/mixxx; the imported tree is the source of truth. The plan's Phase −1 row previously said to add one — that instruction is withdrawn. |
+| 16 | **Stem-layer inventory:** per-stem waveform rendering, stem controls and `.stem.mp4` reading already exist, so O3 and part of O2 are integration work, not construction (§1, §3.2, §3.3). |
 
 ### Still open (defaults I will assume if you do not object)
 

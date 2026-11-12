@@ -279,6 +279,11 @@ Shared single-owner files (route through A0): `CMakeLists.txt`, `res/schema.xml`
   buildenv download truncated at 4% and `file(DOWNLOAD)` has no `STATUS` check, so the only
   symptom was `SHA256 checksum mismatch`. Added a pre-fetch step (curl retries + own hash check +
   `.part` rename) to both macOS jobs and the Windows job; `CMakeLists.txt` is untouched.
+- **2026-11-11** — Plan corrected against the inventory: §1 gained a per-outcome **status** column,
+  §3.3 gained the verified `WaveformRendererStem` API surface, §3.4 was rewritten as resolved,
+  §7.3 marks Phase −1 done and drops the withdrawn "add `upstream` remote" step, and the 2.1/2.2
+  contents no longer include building a stem renderer that already exists. The plan's original
+  §0 and §3.2 already stated that the playback half exists — that part needed no correction.
 - **2026-11-11** — GitHub owner renamed `Sl1pstr3am` → **`christianstuart`**. Updated the git
   remote, README badges/links/clone URL, and every `gh`/repository reference in the plan,
   context doc and baseline report. `docs/old-context.md` intentionally left as historical record.
