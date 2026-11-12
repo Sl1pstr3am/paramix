@@ -30,12 +30,21 @@ deliberately left unwrapped.
 The QML layer had zero `Accessible.*` usage before this work. Two categories were added:
 
 1. **Custom `Item`-based controls** (which Qt does not make accessible automatically) got an
-   explicit role, value range, and increase/decrease actions:
-   - `Mixxx/Controls/Knob.qml` → `Accessible.role: Accessible.Dial` plus `value`,
-     `minimumValue`, `maximumValue`, `stepSize`, `onIncreaseAction` / `onDecreaseAction`.
-   - `Mixxx/Controls/Slider.qml` → `Accessible.role: Accessible.Slider` plus the same value/
-     range/step/action bindings. These two base components cover every knob and fader in the
-     skin, so a screen reader can now announce "dial/slider, 45%" without per-instance work.
+   explicit role:
+   - `Mixxx/Controls/Knob.qml` → `Accessible.role: Accessible.Dial`.
+   - `Mixxx/Controls/Slider.qml` → `Accessible.role: Accessible.Slider`.
+   These two base components cover every knob and fader in the skin, so a screen reader
+   announces them as a dial/slider instead of an anonymous item.
+
+   **Qt 6.4 constraint.** `Accessible.value`, `minimumValue`, `maximumValue`, `stepSize` and
+   `onIncreaseAction` / `onDecreaseAction` were added in **Qt 6.5**. Linux CI builds against
+   Qt 6.4.2 (Ubuntu 24.04), where assigning any of them fails with
+   `Cannot assign to non-existent property "..."` and makes the whole component — and
+   therefore the startup smoke test — fail to load. They were removed for that reason. Qt 6.4
+   does support `role`, `name`, `description`, `ignored` and the state booleans
+   (`checkable`, `checked`, `pressed`, `focusable`, `selected`, ...). Re-add the value/range/
+   action bindings only once the minimum supported Qt is 6.5 or newer (i.e. when the Linux CI
+   image ships Qt ≥ 6.5), and verify with the QML startup smoke test on that platform.
 2. **Button-style controls** got an explicit name so that label-driven names are captured even
    when the button draws a custom `contentItem` that overrides `AbstractButton.text`:
    - `Button.qml`, `FormButton.qml` → `Accessible.name: text` (plus `Accessible.role: Accessible.Button`).

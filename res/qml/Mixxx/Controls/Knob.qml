@@ -53,10 +53,11 @@ Item {
         return targetValue * 2 * root.angle;
     }
 
+    // Only properties available in the minimum supported Qt (6.4) may be used
+    // here. Accessible.value/minimumValue/maximumValue/stepSize and the
+    // increase/decrease actions were added in Qt 6.5 and make the whole
+    // component fail to load on Qt 6.4, which is what Linux CI builds against.
     Accessible.role: Accessible.Dial
-    Accessible.value: root.value
-    Accessible.minimumValue: root.min
-    Accessible.maximumValue: root.max
 
     Item {
         id: background
