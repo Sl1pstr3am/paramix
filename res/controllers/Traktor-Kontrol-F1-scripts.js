@@ -317,7 +317,7 @@ KontrolF1 = new KontrolF1Controller();
 KontrolF1.init = function (id) {
     KontrolF1.id = id;
 
-    KontrolF1.controlModeButtons = { "decks": "capture",  "samplers": "quant" };
+    KontrolF1.controlModeButtons = { "decks": "capture", "samplers": "quant", "stems": "type" };
     KontrolF1.defaultControlMode = "decks";
 
     KontrolF1.initializeHIDController();
@@ -682,6 +682,8 @@ KontrolF1.switchControlMode = function(field) {
         KontrolF1.setControlMode("samplers");
     } else if (field.name=='capture') {
         KontrolF1.setControlMode("decks");
+    } else if (field.name=='type') {
+        KontrolF1.setControlMode("stems");
     } else {
         HIDDebug("Unconfigured mode selector button: " + field.name);
     }
@@ -721,6 +723,7 @@ KontrolF1.registerCallbacks = function() {
 
     controller.setCallback("control", "hid", "capture", KontrolF1.switchControlMode);
     controller.setCallback("control", "hid", "quant", KontrolF1.switchControlMode);
+    controller.setCallback("control", "hid", "type", KontrolF1.switchControlMode);
 
     controller.setCallback("control", "hid", "knob_1", KontrolF1.knob);
     controller.setCallback("control", "hid", "knob_2", KontrolF1.knob);
@@ -811,6 +814,32 @@ KontrolF1.registerCallbacks = function() {
     KontrolF1.linkPlay("samplers", "play_2", "[Sampler2]", "play", true);
     KontrolF1.linkPlay("samplers", "play_3", "[Sampler3]", "play", true);
     KontrolF1.linkPlay("samplers", "play_4", "[Sampler4]", "play", true);
+
+    // Stems mode: control the four stems of [Channel1].
+    // The four faders control per-stem volume, the four knobs control the
+    // per-stem quick effect superknob, the top row of pads toggles each stem's
+    // mute and the second row toggles each stem's quick effect on/off.
+    // The F1 pads are RGB backlit, so each stem uses its own color.
+    KontrolF1.linkFader("stems", "fader_1", "[Channel1_Stem1]", "volume", "volume");
+    KontrolF1.linkFader("stems", "fader_2", "[Channel1_Stem2]", "volume", "volume");
+    KontrolF1.linkFader("stems", "fader_3", "[Channel1_Stem3]", "volume", "volume");
+    KontrolF1.linkFader("stems", "fader_4", "[Channel1_Stem4]", "volume", "volume");
+    KontrolF1.linkKnob("stems", "knob_1", "[QuickEffectRack1_[Channel1_Stem1]]", "super1", "volume");
+    KontrolF1.linkKnob("stems", "knob_2", "[QuickEffectRack1_[Channel1_Stem2]]", "super1", "volume");
+    KontrolF1.linkKnob("stems", "knob_3", "[QuickEffectRack1_[Channel1_Stem3]]", "super1", "volume");
+    KontrolF1.linkKnob("stems", "knob_4", "[QuickEffectRack1_[Channel1_Stem4]]", "super1", "volume");
+    KontrolF1.linkGrid("stems", "grid_1", "[Channel1_Stem1]", "mute", true, undefined, [0x7f, 0x20, 0x00]);
+    KontrolF1.linkGrid("stems", "grid_2", "[Channel1_Stem2]", "mute", true, undefined, [0x7f, 0x20, 0x00]);
+    KontrolF1.linkGrid("stems", "grid_3", "[Channel1_Stem3]", "mute", true, undefined, [0x7f, 0x20, 0x00]);
+    KontrolF1.linkGrid("stems", "grid_4", "[Channel1_Stem4]", "mute", true, undefined, [0x7f, 0x20, 0x00]);
+    KontrolF1.linkGrid("stems", "grid_5", "[QuickEffectRack1_[Channel1_Stem1]]", "enabled", true, undefined, [0x00, 0x7f, 0x00]);
+    KontrolF1.linkGrid("stems", "grid_6", "[QuickEffectRack1_[Channel1_Stem2]]", "enabled", true, undefined, [0x00, 0x7f, 0x00]);
+    KontrolF1.linkGrid("stems", "grid_7", "[QuickEffectRack1_[Channel1_Stem3]]", "enabled", true, undefined, [0x00, 0x7f, 0x00]);
+    KontrolF1.linkGrid("stems", "grid_8", "[QuickEffectRack1_[Channel1_Stem4]]", "enabled", true, undefined, [0x00, 0x7f, 0x00]);
+    KontrolF1.linkPlay("stems", "play_1", "[Channel1]", "play", true);
+    KontrolF1.linkPlay("stems", "play_2", "[Channel1]", "cue_default");
+    KontrolF1.linkPlay("stems", "play_3", "[Channel2]", "play", true);
+    KontrolF1.linkPlay("stems", "play_4", "[Channel2]", "cue_default");
 }
 
 KontrolF1.hotcue = function(button,field) {

@@ -9,7 +9,7 @@ HerculesMk2.decayLast = new Date().getTime();
 HerculesMk2.decayInterval = 300;
 HerculesMk2.decayRate = 1.5;
 
-HerculesMk2.buttons123Modes = ["kill", "fx", "cue", "loop"];
+HerculesMk2.buttons123Modes = ["kill", "fx", "cue", "loop", "stem"];
 HerculesMk2.buttons123used = {"[Channel1]": false, "[Channel1]": false};
 
 // TODO HerculesMk2 controls should be divided into groups, then signals
@@ -114,6 +114,54 @@ HerculesMk2.getControl = function (io, channel, name) {
     }
 
     print ("HerculesMk2.getControl: Control not found: io=" + io + ": channel=" + channel + ": name=" + name);
+};
+
+HerculesMk2.stemGroup = function (group, stem) {
+    // Return the per-stem control group for stem number `stem` (1-4) on the
+    // deck group `group` (e.g. "[Channel1]"). The engine exposes these as
+    // [ChannelN_Stem1] .. [ChannelN_Stem4], see EngineDeck::getGroupForStem.
+    return group.slice(0, -1) + "_Stem" + stem + "]";
+};
+
+HerculesMk2.eqKnob = function (channel, control, value, status, group) {
+    // The three EQ/filter knobs are routed through this script binding so
+    // that they can be repurposed as per-stem volume controls while the
+    // "stem" buttons123 mode is active. When the mode is not active they keep
+    // their normal behavior, writing filterLow/filterMid/filterHigh exactly as
+    // Mixxx's default MIDI mapping would.
+    //
+    // `control` is the MIDI CC number, which identifies both the deck and
+    // which of the three knobs was moved.
+    var channelNum, knobIndex;
+    switch (control) {
+    case 0x2E: channelNum = 1; knobIndex = 0; break; // Deck 1 filterLow
+    case 0x2F: channelNum = 1; knobIndex = 1; break; // Deck 1 filterMid
+    case 0x30: channelNum = 1; knobIndex = 2; break; // Deck 1 filterHigh
+    case 0x2B: channelNum = 2; knobIndex = 0; break; // Deck 2 filterLow
+    case 0x2C: channelNum = 2; knobIndex = 1; break; // Deck 2 filterMid
+    case 0x2D: channelNum = 2; knobIndex = 2; break; // Deck 2 filterHigh
+    default:
+        return;
+    }
+
+    var deckGroup = "[Channel" + channelNum + "]";
+
+    // Replicate Mixxx's ControlPotmeter MIDI scaling so the EQ knobs keep
+    // their exact behavior when not in stem mode. See
+    // ControlPotmeterBehavior::midiToParameter in src/control/controlbehavior.cpp:
+    //   parameter = value > 64 ? (value - 1) / 126 : value / 128
+    var parameter = (value > 64) ? (value - 1) / 126.0 : value / 128.0;
+
+    var mode = HerculesMk2.getControl("inputs", deckGroup, "fx select").mode;
+    mode = HerculesMk2.buttons123Modes[mode];
+
+    if (mode == "stem") {
+        // Stems 1-3 volume (the 4th stem is controlled by the pitch pot).
+        engine.setValue(HerculesMk2.stemGroup(deckGroup, knobIndex + 1), "volume", parameter);
+    } else {
+        var keys = ["filterLow", "filterMid", "filterHigh"];
+        engine.setValue(deckGroup, keys[knobIndex], parameter);
+    }
 };
 
 HerculesMk2.setLeds = function (onOff) {
@@ -321,6 +369,22 @@ HerculesMk2.buttons123 = function (group, control, value, status) {
         }
     break;
 
+    case "stem": // Stem mode: toggle mute for stems 1-3
+    if (value) { // Button pressed.
+        switch (HerculesMk2.controls.inputs[control].name) {
+        case "fx 1":
+        engine.setValue(HerculesMk2.stemGroup(group, 1), "mute", !engine.getValue(HerculesMk2.stemGroup(group, 1), "mute"));
+        break;
+        case "fx 2":
+        engine.setValue(HerculesMk2.stemGroup(group, 2), "mute", !engine.getValue(HerculesMk2.stemGroup(group, 2), "mute"));
+        break;
+        case "fx 3":
+        engine.setValue(HerculesMk2.stemGroup(group, 3), "mute", !engine.getValue(HerculesMk2.stemGroup(group, 3), "mute"));
+        break;
+        }
+    }
+    break; // End stem mode
+
     default:
     print("HerculesMk2.buttons123: " + mode + " mode unsupported");
     }
@@ -350,13 +414,14 @@ HerculesMk2.buttons123mode = function (group, control, value, status) {
         print("HerculesMk2.buttons123mode: Switching to " + sNextMode + " mode");
     }
 
-    // Only turn on/off leds for non-zero modes as 0 is kill mode which
-    // has no corresponding LED. i.e. all LEDs off for kill mode.
-    if (currentMode) HerculesMk2.setLed(currentLed, "off");
+    // Only turn on/off leds for modes that have a corresponding LED. Mode 0
+    // (kill) and the last mode (stem) have no dedicated LED, so all LEDs are
+    // off for those modes.
+    if (currentMode && HerculesMk2.leds[currentLed] !== undefined) HerculesMk2.setLed(currentLed, "off");
     // Seems that if midi messages are sent too quickly, leds don't behave
     // as expected. A pause rectifies this.
     HerculesMk2.pauseScript(10);
-    if (nextMode) HerculesMk2.setLed(nextLed, "on");
+    if (nextMode && HerculesMk2.leds[nextLed] !== undefined) HerculesMk2.setLed(nextLed, "on");
 
     HerculesMk2.controls.inputs[control].mode = nextMode;
     }
@@ -372,6 +437,22 @@ HerculesMk2.pitch = function (group, control, value, status) {
 
     currentMode = HerculesMk2.getControl("inputs", group, "fx select").mode;
     currentMode = HerculesMk2.buttons123Modes[currentMode];
+
+    // In stem mode, the pitch pot adjusts the volume of stem 4, which is not
+    // covered by the three EQ knobs. The pitch pot is a relative encoder, so
+    // turn right (CW) to raise the volume and left (CCW) to lower it.
+    if (currentMode == "stem") {
+        var stemGroup4 = HerculesMk2.stemGroup(group, 4);
+        var volumeIncrement = 0.05;
+        volumeIncrement = (value <= 0x3F) ? volumeIncrement : volumeIncrement * -1;
+        var currentVolume = engine.getValue(stemGroup4, "volume");
+        var newVolume = currentVolume + volumeIncrement;
+        newVolume = newVolume > 1 ? 1 : newVolume < 0 ? 0 : newVolume;
+        if (newVolume != currentVolume) {
+            engine.setValue(stemGroup4, "volume", newVolume);
+        }
+        return;
+    }
 
     // If in fx mode and one or more of buttons 123 are pressed, use pitch
     // pot to adjust the relevant flanger parameters instead of changing
