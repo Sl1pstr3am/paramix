@@ -84,7 +84,12 @@ no telemetry; macOS 13+ / Win10 21H2+ / Ubuntu 22.04+ / Fedora 39+ as the suppor
 ### 3.1 Git / repo
 - Commits: `96f541b` Initial commit → `8c67ba8` Update repository (import, 6035 files) →
   `0901e4b` Update repository (docs) → `2ef4670` ci: fix baseline workflow flags and hygiene.
-- History is linear on `main`; the user chose **commit directly to main** (no baseline branch).
+- History is linear on `main`. Direct commits were the rule during Phase −1; since 2026-11-12
+  `main` is **protected** (PR + all five CI jobs required, force pushes and branch deletion
+  blocked). Work on `bradley/<topic>`-style branches and merge with
+  `gh pr merge --squash --auto`. Current commits: `96f541b` Initial commit → `8c67ba8` import →
+  `0901e4b` docs → `2ef4670` → `55c4b11` → `c41bb96` → `18c817b` → `91b72cd` → `7cbd5fc` →
+  `a48cacc` → `72b1965` → branch protection.
 - `.DS_Store` was tracked and is now untracked + gitignored.
 - Tracked size ≈ 180 MB; `.git` ≈ 82 MB. Largest blobs are legitimate stem test fixtures
   (`src/test/stems/stem02/trance_ALAC_24bit.stem.mp4`, 12 MB).

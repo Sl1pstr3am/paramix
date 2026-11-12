@@ -14,9 +14,22 @@ These are not style preferences; breaking them costs a cancelled CI run or a bro
 1. **Never sync with upstream Mixxx.** No `git remote add upstream`, no merges or cherry-picks from
    `mixxxdj/mixxx`. The imported tree in this repository is the source of truth. The `upstream`
    remote was deliberately removed.
-2. **Do not push to `main`.** Work on a branch and open a pull request. The workflow uses
-   `concurrency: cancel-in-progress: true`, so a push to `main` cancels every build that is
-   already running — including other people's.
+2. **Do not push to `main` — it is enforced, not just convention.** `main` requires a pull request
+   and all five CI jobs (`Repository checks`, `Linux x64`, `Windows x64`, `macOS arm64`,
+   `macOS x86_64`). Force pushes and branch deletion are blocked, and unresolved review
+   conversations block merging. The workflow uses `concurrency: cancel-in-progress: true`, so a
+   push to `main` cancels every build that is already running — including other people's.
+
+   The intended loop for every contributor, including the owner:
+
+   ```bash
+   git switch -c bradley/<topic>
+   # ... work, commit ...
+   git push -u origin bradley/<topic>
+   gh pr create --fill --base main
+   gh pr merge --squash --auto   # merges once all five checks pass
+   ```
+
 3. **Branch naming:** `bradley/<topic>`, for example `bradley/controller-mappings` or
    `bradley/a11y-qml`.
 4. **Do not edit these files** without asking the integrator first:
