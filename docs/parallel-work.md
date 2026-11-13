@@ -69,72 +69,52 @@ A frequent waste of effort here is building something the imported tree already 
 
 ---
 
-## 3. Claimable workstreams
+## 3. Claimable workstreams & consolidated task backlog
 
-Each workstream below is chosen because it touches files the main workstream is not editing. Claim it
-by adding your name to the table in §4 in your first pull request.
+Workstreams W1 (#3), W2 (#4), W4 (#6), W5 (#5), W6 (#15), and the `rbxport` beatgrid engine (#16) are **merged on `main`**.
 
-### W1 — Controller mappings for stem mixing
+The remaining project backlog on the [Program Board](https://github.com/users/christianstuart/projects/2) is consolidated into **8 independent tasks** so multiple agents can work in parallel without file collisions:
 
-- **Scope:** add or update mappings (144 MIDI, 18 HID today) that expose the existing
-  `[ChannelN_Stem1..4]` `volume`, `mute`, `solo` and QuickFX controls, including the four-stem
-  views on Traktor S4 MK3-class hardware.
-- **Files:** `res/controllers/**` only.
-- **Why it is safe:** XML/JS mapping files, no C++.
-- **Done when:** mapping loads without XML errors, controls move the documented ControlObjects,
-  and `res/controllers` files pass the YAML/XML checks.
+**Current state (2026-11-13):** Stems 1 and 2 are in review (#17, #18, #19); the native stem export is in review (#20). All five CI jobs are green on each. Stems 4 (the background queue) is the next implementation task. The program board carries the same status.
 
-### W2 — Accessibility and localization of the QML UI
+### 1. Beatgrid — Rekordbox-style phrase labeling & visualization option
+- **Scope:** Extend `src/proto/beats.proto` additively (`BarInfo` + phrase segments under existing version strings; fix `Beats::operator==`), preserve `GridPhase::phraseStarts` in `analyzerrbxportbeats.cpp` and classify segments into Rekordbox-style phrase labels (`Intro`, `Up`, `Down`, `Verse`, `Bridge`, `Chorus`, `Outro`), import Rekordbox `PSSI` (`SECTION_TAGS_SONG_STRUCTURE`) in `rekordboxfeature.cpp`, and add a user preference to toggle between **Standard Bar** lines and **Rekordbox Phrase Style** (colored, labeled phrase blocks/strip).
+- **Files:** `src/proto/beats.proto`, `src/track/beats.*`, `src/analyzer/plugins/rbxport/*`, `src/library/rekordbox/rekordboxfeature.cpp`, `src/waveform/renderers/*waveformrenderbeat*`.
 
-- **Scope:** the QML skin has effectively no `Accessible.*`/`accessibleName` and **zero** `qsTr()`
-  calls, while the widget UI is fully translated. Add accessible names/roles and wrap user-visible
-  strings in `qsTr()`.
-- **Files:** `res/qml/**`, excluding a small set the main workstream will touch when it builds the
-  Paramix skin (announce before you start; see §4).
-- **Why it is safe:** additive changes; no engine or library code.
-- **Done when:** `lupdate`/translation extraction reports the new strings, no new hardcoded
-  user-visible text, and screens pass a keyboard-only navigation check.
+### 2. Stems 1 - Host STFT/iSTFT & CaC-split DSP pipeline (implemented, PRs #17/#18)
+- **Status:** In review. #17 adds the host transform; #18 adds normalization, bag averaging, the shared limiter and `demucsReconstruct`. 52 tests pass locally and all five CI jobs are green.
+- **Scope:** Cut HTDemucs v4 at the complex-as-channels boundary: a host C++ STFT (`n_fft=4096`, `hop=1024`, Hann window, Nyquist + two-frame edge trim) producing `mix [B, 2, 343980]` and `mag [B, 4, 2048, 336]`, `stem[s] = wav[s] + ISTFT(spec[s])`, denormalized bag blending before one inverse transform, and a shared scalar peak limiter.
+- **Files:** `src/stems/demucsstft.*`, `src/stems/demucsnormalization.*`, `src/stems/demucsbag.*`, `src/stems/demucslimiter.*`, `src/test/`.
+- **Remaining:** the ONNX wrapper still emits raw stems (the limiter is not wired into it) and 44.1 kHz resampling is not wired.
 
-### W3 — Packaging and installers
+### 3. Stems 2 - ONNX Runtime inference backend (implemented, PR #19)
+- **Status:** In review. The MIT header-only demucs-onnx runtime is vendored under `lib/demucs-onnx/`; `DemucsOnnxSeparator` wraps `demucs::Separator`; `STEM_SEPARATION` is AUTO/ON/OFF; a dedicated Linux ORT CI workflow runs.
+- **Scope:** ONNX Runtime session and execution-provider fallback, chunking, track-level normalization, overlap-add, four-stem output and the factory seam. Validated with the demucs-onnx `htdemucs` graph on Windows x64 CPU.
+- **Licensing:** the runtime is MIT; the HTDemucs weights are CC BY-NC 4.0, not MIT, and are not committed.
+- **Files:** `lib/demucs-onnx/`, `src/stems/demucsonnxseparator.*`, `src/stems/stemseparatorfactory.*`, `cmake/modules/Findonnxruntime.cmake`, `.github/workflows/stems-onnx.yml`, `docs/stems-onnx.md`.
+- **Remaining:** wire the shared limiter and resampling, add Windows/macOS ORT CI, and the model manager/ADR-005.
 
-- **Scope:** finish the cross-platform packaging story: Windows installer, macOS universal app
-  bundle, Linux AppImage/Flatpak/deb, desktop entry and icons for the Paramix name.
-- **Files:** `packaging/**`, `res/linux/**`, `res/images/**` (new assets), `tools/*buildenv*`
-  scripts. Do not touch `CMakeLists.txt`; request changes through the integrator.
-- **Why it is safe:** no overlap with feature code.
-- **Done when:** an installer or bundle can be produced from a clean checkout, and the product name,
-  version `0.1` and "based on Mixxx 2.7.0" appear in the About metadata.
+### 4. Stems 3 - Native stem set export (FLAC/ALAC or AAC) (implemented, PR #20)
+- **Status:** In review. Traktor `.stem.mp4` writing is dropped; the reader remains. A set is four stereo files plus `stem-set.json`.
+- **Scope:** FLAC (default, libsndfile 24-bit), ALAC (libsndfile CAF/ALAC 24-bit) or AAC (FDK AAC ADTS, default 256 kbps). `[Stems],FileFormat` and `[Stems],AacBitrate`; atomic temp-directory writes; existing-set refusal; sidecar metadata.
+- **Files:** `src/stems/stemfileformat.*`, `src/stems/stemfilewriter.*`, `src/test/stemfilewritertest.cpp`, `docs/stem-file-export.md`.
+- **Remaining:** schema rev 41 link, Settings/UI, service integration and direct playback of exported sets.
 
-### W4 — Test infrastructure and golden audio fixtures
+### 5. Stems 4 — Background stem separation queue & worker service (`StemService`)
+- **Scope:** Persistent low-priority job queue owned by `CoreServices` supporting single-track and batch separation, pause/cancel/resume, free-space preflight, per-track progress signals (`NotSeparated`, `Queued`, `Separating%`, `Ready`, `MissingStemFile`, `Failed`), and automatic 8-channel `AnalyzerWaveform` trigger upon completion.
+- **Files:** `src/stems/`, `src/coreservices.*`, `src/analyzer/`.
 
-- **Scope:** the beatgrid has **no** end-to-end detection test, no fixture with a golden grid and no
-  benchmark. Build that harness, plus a synthetic 4-band mix fixture for separation plumbing.
-- **Files:** `src/test/**` (new files), `tools/**` (new scripts).
-- **Why it is safe:** additive test code. Do not modify existing tests to make them pass.
-- **Done when:** a golden-fixture test runs under `ctest`, fails meaningfully when the grid is
-  perturbed, and needs no network access.
+### 6. Waveform — 4-stem tinted composite mode, labels & 60 fps batching
+- **Scope:** Add a selectable **tinted composite** mode alongside stacked lanes in `allshader::WaveformRendererStem` and its QML wrapper, keep muted stems visible at dimmed opacity, add per-stem labels with the color-blind-safe palette, and fix the `kPixelPerStrip = 2` scene-graph batching to hold ≤ 8 ms CPU/frame at 60 fps (4 decks @ 1080p).
+- **Files:** `src/waveform/renderers/allshader/waveformrendererstem.*`, `src/qml/qmlwaveformrenderer.*`, `res/shaders/`.
 
-### W5 — Model hosting scaffolding (`paramix-models`)
+### 7. UI Overhaul — Paramix QML skin, design system & stems/phrase controls
+- **Scope:** Build `res/qml/Theme` design tokens and the default `res/skins/Paramix/` QML skin (2/4-deck variants, stacked/tinted waveform toggle, Standard Bar vs. Rekordbox Phrase toggle, 4-row deck stem mixer strip with Acapella/Instrumental complement buttons, Library stem status column + context menu, and `Settings → Stems` page).
+- **Files:** `res/skins/Paramix/`, `res/qml/`, `src/qml/`, `src/preferences/dialog/`.
 
-- **Scope:** the model manifest format, SHA-256 + MIT license metadata, and a download/verify tool.
-  Models are **download-only** from a dedicated repository; nothing is committed here.
-- **Files:** `tools/**` (new script), `docs/**` (new document). Not `src/`.
-- **Why it is safe:** no C++ and no CI changes.
-- **Done when:** the tool can fetch a local test manifest, verify checksums, resume an interrupted
-  download and refuse a mismatched hash.
-
-### W6 — Additional CI workflows
-
-- **Scope:** new, separate workflow files, for example a nightly sanitizer run or a packaging smoke
-  test. **Do not edit `.github/workflows/ci.yml`.**
-- **Why it is safe:** new files only.
-- **Done when:** the workflow is green on a branch and does not run on every push (keep runner cost
-  sane).
-- **Status:** claimed by bradley. First workflow is the QML minimum-Qt guard
-  (`.github/workflows/qml-qt-api-guard.yml`, `tools/qml_qt_api_guard.py`,
-  `docs/qml-qt-version-guard.md`), which catches Qt 6.5+ QML API on a Qt 6.4.2 runner in seconds
-  instead of after a full Linux build — the regression W2 hit. A packaging smoke test is deferred
-  until W3 lands; a nightly sanitizer build is still open and needs its own cost decision.
+### 8. W3 — Packaging, Paramix rebrand & `~/.paramix` migration wizard
+- **Scope:** Finish cross-platform packaging (Windows x64 installer, macOS universal bundle with `-DQML=ON`, Linux AppImage/Flatpak/deb), `Paramix 0.1 (based on Mixxx 2.7.0)` identity/icons/bundle IDs, `NOTICE` + `docs/third-party-models.md`, first-run `~/.mixxx` → `~/.paramix` migration wizard, and register W4's fixture tests in `CMakeLists.txt`.
+- **Files:** `packaging/**`, `res/linux/**`, `res/images/**`, `docs/third-party-models.md`, `CMakeLists.txt`.
 
 ---
 
@@ -150,7 +130,7 @@ paths.
 | CI definitions | `.github/workflows/ci.yml` | main | Add new files instead |
 | Beatgrid / downbeats | `src/track/beats*`, `src/analyzer/**` | main | Planned work, collision-prone |
 | Stem separation | `src/engine/**`, new separator code | main | Planned work |
-| `.stem.mp4` export | `src/sources/**`, `src/track/steminfo*` | main | Planned work |
+| Stem export | `src/stems/`, `src/sources/**`, `src/track/steminfo*` | main | Planned work |
 | Paramix QML skin | `res/qml/**` (new skin) | main | Coordinate before editing shared QML |
 | Controller mappings | `res/controllers/**` | **free** | W1 |
 | QML accessibility/localization | `res/qml/**` (existing files) | **free** | W2 — announce first |

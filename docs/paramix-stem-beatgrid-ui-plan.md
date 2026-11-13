@@ -1,10 +1,12 @@
 # Paramix — Beatgrid, Stem Separation & UI Program Plan
 
-**Status:** Proposal v0.2 (decisions locked) · 2026-11-11
+**Status:** Proposal v0.3 (consolidated backlog & rethought stem architecture) · 2026-11-12
 **Repository:** `paramix` (working tree is a Mixxx 2.7.0-alpha fork; remote `github.com/christianstuart/paramix`)
 **Scope of this document:** planning and architecture only. No source code was modified to produce it.
 
 ---
+
+> **Update 2026-11-13 - Traktor export dropped.** Generated stems are no longer written as Traktor `.stem.mp4`. The current export is a native set of four stereo files (FLAC/ALAC lossless, or AAC lossy) plus `stem-set.json`; see `docs/stem-file-export.md`. Reading existing `.stem.mp4` files is unchanged. References below to Traktor-compatible export describe the superseded plan. The HTDemucs weights are CC BY-NC 4.0, not MIT as decision 3 below says; the runtime code is MIT.
 
 ## 0. Executive summary
 
@@ -284,107 +286,88 @@ Current market patterns: Traktor Pro 4 uses right-click offline separation with 
 
 ## 6. Target architecture (Option B)
 
-### 6.1 System view
+### 6.1 System view (v0.3 — Rethought Traktor-style `.stem.mp4` + CaC-split GPU architecture)
 
 ```
- Library / UI actions            Analysis queue / import
- (Separate, progress, badges)    (auto-separate setting)
-             │                            │
-             └──────────────┬─────────────┘
-                            ▼
-                 ┌─────────────────────────┐
-                 │ StemService             │  owned by CoreServices
-                 │  job queue (persistent) │
-                 │  model manager          │
-                 └───────┬─────────┬───────┘
-                         │         │
-             ┌───────────▼──┐   ┌──▼──────────────┐
-             │ StemSeparator│   │ StemCache       │
-             │ ONNX Runtime │   │ 8ch FLAC + JSON │
-             │ CPU/CoreML/  │   │ atomic + LRU GC │
-             │ DirectML/CUDA│   └──┬──────────────┘
-             └───────┬──────┘      │
-                     │             │
-                     ▼             ▼
-             ┌──────────────────────────────┐
-             │ SoundSourceProxy hook        │
-             │ → SoundSourceStemCache (8ch) │
-             └──────────────┬───────────────┘
-                            ▼
-             ┌──────────────────────────────┐
-             │ EngineDeck::processStem()    │  existing path
-             │ 4 × gain/mute/FX/VU → mix    │
-             └──────────────┬───────────────┘
-                            ▼
-             ┌──────────────────────────────┐
-             │ WaveformRendererStem         │
-             │ 4 lanes + downbeat accents   │
-             └──────────────────────────────┘
+  Library / UI actions ("Generate Stems", batch queue, status badges)
+                             │
+                             ▼
+                  ┌─────────────────────────┐
+                  │ StemService             │  owned by CoreServices
+                  │  low-priority job queue │
+                  │  model manager (W5)     │
+                  └──────────┬──────────────┘
+                             │
+                             ▼
+         ┌───────────────────────────────────────────────┐
+         │ Host STFT / iSTFT & CaC-Split Pipeline        │  src/stems/
+         │  44.1 kHz resample + reflection pad           │  (demucs-onnx / stems.cpp pattern)
+         │  mix [B,2,343980] + CaC mag [B,4,2048,336]    │
+         └───────────────────┬───────────────────────────┘
+                             │
+                             ▼
+         ┌───────────────────────────────────────────────┐
+         │ GPU-Accelerated Inference Backend             │
+         │  Metal (macOS) · Vulkan / DirectML / CUDA     │
+         │  SIMD CPU fallback + startup NaN self-check   │
+         │  Fast: htdemucs fp16 (~95 MB)                 │
+         │  HQ:   htdemucs_ft / mel_band_roformer_kim    │
+         └───────────────────┬───────────────────────────┘
+                             │
+                             ▼
+         ┌───────────────────────────────────────────────┐
+         │ Traktor-Style Native .stem.mp4 Writer         │
+         │  Stream 0: stereo master mix                  │
+         │  Streams 1-4: Drums, Bass, Other, Vocals      │
+         │  Codec: ALAC (lossless) or AAC (256 kbps)     │
+         │  Atom: moov/udta/stem NI JSON manifest        │
+         │  Linked in <StemFilesLocation>/<track>.stem.mp4│
+         └───────────────────┬───────────────────────────┘
+                             │
+                             ▼
+         ┌───────────────────────────────────────────────┐
+         │ SoundSourceProxy → SoundSourceSTEM (existing) │
+         │  → EngineDeck::processStem() (8 channels)     │
+         │  → AnalyzerWaveform (4-stem peaks)            │
+         │  → WaveformRendererStem (stacked / tinted)    │
+         └───────────────────────────────────────────────┘
 ```
 
-### 6.2 Bar and downbeat information (ADR-003)
+### 6.2 Beatgrid & Rekordbox-style phrase visualization
 
-The grid format is extended **additively under the existing `BeatGrid-2.0` / `BeatMap-1.0`
-version strings**; see [`docs/adr/0003-grid-format.md`](adr/0003-grid-format.md). There is no
-`BeatGrid-3.0`, no dual-write and no new column.
+With the **rbxport** C++ beatgrid analyzer (`src/analyzer/plugins/rbxport/`, PR #16) merged and delivering kick-attack placement, variable-tempo segmentation, and arrangement-based downbeat detection, no ML beat tracker (`Beat This!`) is needed. The remaining beatgrid work focuses on **phrase change labeling and visualization**:
 
-```proto
-message BarInfo {
-  optional uint32 beats_per_bar = 1;      // e.g. 4
-  optional uint32 first_beat_in_bar = 2;  // zero-based ordinal of the bar-start beat
-}
+- **Additive wire format (ADR-003):** extend `BeatGrid` and `BeatMap` in `src/proto/beats.proto` additively under the existing `BeatGrid-2.0` / `BeatMap-1.0` version strings with `BarInfo` (`beats_per_bar`, `first_beat_in_bar`) and optional phrase segment entries (`start_beat`, `end_beat`, `phrase_kind`), plus fix the `Beats::operator==` sample-rate comparison bug (`beats.h:216-221`).
+- **Rekordbox-style phrase classification & import:**
+  - `rbxport/downbeat.cpp` already computes 12-band log-energy spectral profiles (`BandFrames`) and 4-bar spectral novelty peaks (`GridPhase::phraseStarts`). Preserve `phraseStarts` from `analyseGrid()` and classify each phrase segment from its band-energy profile and track position into Rekordbox-style phrase labels (`Intro`, `Up`, `Down`, `Verse 1/2`, `Bridge`, `Chorus`, `Outro`).
+  - In `src/library/rekordbox/rekordboxfeature.cpp`, import Rekordbox's `SECTION_TAGS_SONG_STRUCTURE` (`PSSI`, already parsed by `lib/rekordbox-metadata/rekordbox_anlz.h`) and `beat_number` downbeats directly.
+- **Selectable waveform display option:**
+  - **Standard Bar (default/classic):** simple vertical bar line at phrase/bar changes.
+  - **Rekordbox Phrase Style:** colored, labeled Rekordbox-style phrase blocks/strip (`INTRO`, `VERSE`, `BRIDGE`, `CHORUS`, `UP`, `DOWN`, `OUTRO`) with distinct colors per phrase type and optional text labels.
 
-message BeatGrid {
-  // existing fields unchanged
-  optional BarInfo bar = 3;               // next free tag in the existing message
-}
+### 6.3 Rethought stem separation pipeline (4 modular tasks)
 
-message BeatMap {
-  // existing fields unchanged
-  optional BarInfo bar = 3;               // next free tag in the existing message
-}
-```
+Inspired by **Traktor Pro 4** ("Generate Stems" → linked `.stem.mp4` in Stem Files Location), **NUO-STEMS 4**, **`HRSadeghi/demucs-onnx`**, and **`betweentwomidnights/stems.cpp`**, the stem separation pipeline is split into four clean, non-overlapping tasks:
 
-- **Absence means unknown, never 4/4.** A grid without `bar` behaves exactly as it does today.
-- **Phase is relative to the grid anchor**, not an absolute downbeat frame, so translation and
-  scaling preserve it.
-- **Downgrades are safe.** Older builds ignore unknown protobuf fields and keep reading the
-  grid. Changing the version string is what triggers the destructive frame-0 placeholder in
-  `trackdao`, which is why the version strings do not change.
-- **Malformed bar info is ignored** with a warning; the grid is never discarded because of it.
-- **No schema revision and no migration:** the grid lives in `library.beats`.
-- **Detection result** from a new `BeatDetector` interface: beats, downbeat positions,
-  confidence, tempo segments, detector id, hypotheses (half/double, phase alternatives).
-- **Builder:** `BeatGridBuilder` converts beats → `Beats` markers (piecewise tempo), picks the
-  bar phase, resolves half/double using downbeat periodicity + tempo prior, and records
-  confidence.
-- **Confidence and detector id** stay in `beats_sub_version` for now; promoting them to real
-  fields is a separate later decision.
-- **Consumers:** downbeat lines in the waveform (thick/colored); optional bar quantise,
-  bar-length loops and downbeat-aware sync (feature-flagged); grid editor gains "set downbeat",
-  "shift grid", hypothesis choice, confidence badge; `trySetBpm` becomes non-destructive
-  (warn + keep map) or explicitly "flatten grid".
-- **Fallback:** if the ML model is unavailable, Queen Mary runs and the grid has no bar info.
-- **Prerequisite:** fix the `Beats::operator==` sample-rate comparison bug (`beats.h:216-221`,
-  it uses `&&`), otherwise equality-based round-trip tests are vacuous.
-
-### 6.3 Separation pipeline
-
-1. **Trigger:** import scan (optional auto-separate), context menu "Separate stems", analysis dialog, or "Separate now" on a loaded track.
-2. **Job:** open the track with `SoundSourceProxy(track).openAudioSource()` off the RT thread; decode to the model rate (44.1 kHz) with `libswresample`; mono/stereo as the model expects.
-3. **Inference:** chunked windows (typically 7.8 s, 25% overlap), Hann/linear overlap-add; optional test-time augmentation/ensemble for the Max tier; ORT session per worker, reused.
-4. **Output:** 4 stems, resampled back to the track's rate, normalized consistently; write 8-channel FLAC atomically (temp dir → rename) plus `meta.json`.
-5. **Peaks:** feed the 8-channel buffer through `AnalyzerWaveform` (or compute peaks inline) so `Waveform-6.1` stem data exists and the renderer lights up.
-6. **Publish:** update DB cache row, `Track::setStemInfosWhileLocked()` (labels/colors), emit progress/finished, refresh library badge.
-7. **Cancel/pause:** ORT run is chunk-granular; check a cancellation flag between chunks; persist progress for resume.
-
-### 6.4 Playback integration
-
-- Add `SoundSourceStemCache` (a `SoundSource`/`AudioSource` wrapper) that opens the cache FLAC with 8 channels and reports the original track's duration/rate.
-- Hook it in `SoundSourceProxy::openAudioSource()` (it already holds the `TrackPointer`) **before** provider selection: if `StemCache::lookup(track)` succeeds and the cache is valid, return the stem source; otherwise fall back to the original file. This covers both `CachingReaderWorker` and `AnalyzerThread`.
-- `CachingReaderWorker` already requests the maximum supported channels (8) for decks; the engine's `processStem()` path triggers on channel count > 2, so **no engine rewrite is needed**.
-- Populate `StemInfo` from cache metadata on load (and persist in DB for library display), so `.stem.mp4`-specific JSON parsing is not required for generated stems.
-- Keep `.stem.mp4` reading untouched; add export later by muxing 4 ALAC/AAC streams + the NI JSON atom with FFmpeg/libmp4v2.
+1. **Stems 1 — Host STFT/iSTFT & CaC-split streaming DSP pipeline (`src/stems/`):**
+   - `HTDemucs.forward` uses complex STFT/iSTFT tensors that break naive GPU graph exports. Cut the model at the Complex-as-Channels (CaC) spectrogram boundary: C++ computes the radix-2 FFT STFT (`n_fft=4096`, `hop=1024`, Hann window, dropping the Nyquist bin and 2 edge frames to match `HTDemucs._spec` / `_ispec`) producing `mix [B, 2, 343980]` and CaC spectrogram `mag [B, 4, 2048, 336]`, and reconstructs `stem[s] = wav[s] + ISTFT(spec[s])`.
+   - For multi-model bags (`htdemucs_ft`), blend raw `spec` and `wav` outputs chunk-by-chunk *before* running `ISTFT` once.
+   - Include 44.1 kHz band-limited resampling, per-chunk mean/stddev normalization, reflection padding on the final chunk (with real preceding audio instead of silence), unity overlap-add, and a shared scalar peak limiter only when a stem or sum exceeds `0 dBFS`.
+2. **Stems 2 — GPU-accelerated inference backend & model manager (`src/stems/`):**
+   - Hardware GPU acceleration across **macOS (Metal / CoreML)**, **Windows (Vulkan / DirectML / CUDA)**, and **Linux (Vulkan / CUDA)**, with automatic fallback to **SIMD CPU (`AVX2` / `NEON`)** with bounded threads and spin-wait disabled.
+   - Run a fast startup GPU sanity check on a test buffer to verify finite (non-NaN) output before processing user audio; fall back to CPU on driver/fp16 faults.
+   - Default to single-model **`htdemucs` fp16 (~95 MB, MIT)** for fast separation (~3–6 s on GPU / ~45 s on CPU per 4-min track at 9.0 dB SDR), with optional **`htdemucs_ft` (MIT)** and **`mel_band_roformer_kim` (MIT)** high-quality tier.
+   - In-app C++/Qt Model Manager built on W5's `docs/model-manifest.md` fetching from `christianstuart/paramix-models` GitHub Releases with MIT license prompt, HTTP Range resume, SHA-256 verification, and offline "Install from file".
+3. **Stems 3 — Traktor-style native `.stem.mp4` generation & library stem linking (`src/stems/`, `src/sources/`):**
+   - Rather than maintaining a custom 8-channel FLAC cache *and* a separate `.stem.mp4` exporter *and* a custom `SoundSourceStemCache` decoder, generate standard **`.stem.mp4` files** directly into the configured **Stem Files Location** (`<DataDir>/stems/`):
+     - Stream 0: original stereo master mix; Streams 1–4: Drums, Bass, Other, Vocals in user-selectable **ALAC (lossless)** or **AAC (256 kbps)** at the source sample rate.
+     - Include the Native Instruments `moov/udta/stem` JSON manifest atom (`version: 1`, stem names, color-blind-safe hex colors, and default `mastering_dsp` metadata) written atomically via `.part` rename.
+   - Link the generated `.stem.mp4` to the library track (schema rev 41, `min_compatible="3"`).
+   - Hook `SoundSourceProxy::openAudioSource()` to open the linked `.stem.mp4` directly via the existing `SoundSourceSTEM` 8-channel reader and `StemInfoImporter`. If the `.stem.mp4` file is missing (e.g. external drive unplugged), display a Traktor-style red "Stem file missing" indicator and fall back cleanly to the original stereo track.
+   - "Save / Export `.stem.mp4` As…" becomes an instant file copy (or ALAC ↔ AAC transcode).
+4. **Stems 4 — Background stem separation queue & worker service (`StemService`):**
+   - Persistent `StemService` owned by `CoreServices` supporting single-track ("Generate Stems") and batch ("Generate Stems for Selected") jobs on a low-priority worker thread (`QThread::LowPriority`).
+   - Emits per-track status (`NotSeparated`, `Queued`, `Separating(progress%)`, `Ready`, `MissingStemFile`, `Failed`), supports pause/cancel/resume and free-space preflight, and triggers 8-channel `AnalyzerWaveform` upon completion so 4-stem waveform peaks appear automatically.
 
 ### 6.5 Waveform changes
 
@@ -612,20 +595,20 @@ Two DJ sessions per milestone: one technical (beat alignment, stem bleed, FX, la
 
 ---
 
-## Appendix A — First 10 working days (concrete backlog)
+## Appendix A — Consolidated Active Task Backlog (2026-11-12)
 
-**Days 1–2 (A0, A8):** commit the import on a branch; restore upstream dotfiles/CI; add `docs/`, `.gitignore` entries for `build/`, `models/`, `stems/`; run `ctest` on all four targets (Windows x64, Linux x64, macOS arm64, macOS x86_64); record baseline.
+The program board (<https://github.com/users/christianstuart/projects/2>) has been consolidated into **8 non-overlapping build tasks** (plus the 7 completed baseline/parallel cards):
 
-**Days 3–5 (spikes):**
-- A3: export `htdemucs_ft` to ONNX; run a 4-min track on M-series CPU + CoreML and on Windows CPU; record wall time/RSS/SDR. Dry-run the GitHub Releases manifest/download path.
-- A7/A9: branding inventory (name, icons, bundle IDs, desktop entry) and the model-manifest ADR.
-- A2: run Beat This! ONNX on 10 labeled tracks; compute F-measure vs Queen Mary.
-- A4: write/read an 8-channel FLAC; verify `SoundSourceFLAC` 8-ch playback through `EngineDeck`.
-- A6: prototype 4-lane renderer geometry and measure frame time.
-
-**Days 6–8 (contracts):** ADRs 001–005 (runtime/model, cache, grid, UI/customization, model distribution); `src/stems/` headers; ADR-003 `BarInfo` proto; schema draft; model manifest schema; `docs/third-party-models.md` skeleton.
-
-**Days 9–10 (skeleton):** CMake flags; `StemCache` read/write with a dummy separator; ADR-003 bar-info serialization test; design tokens + `res/skins/Paramix/skin.ini` + `main.qml` shell with Paramix branding; nightly CI.
+| # | Area | Task | Primary Files |
+|---|---|---|---|
+| 1 | **Beatgrid** | **Rekordbox-style phrase labeling & visualization option** — additive `BarInfo` + phrase segments in `beats.proto`, classify `rbxport` `GridPhase::phraseStarts` into Rekordbox-style phrase labels (`Intro`, `Up`, `Down`, `Verse`, `Bridge`, `Chorus`, `Outro`), import Rekordbox `PSSI` song structure in `rekordboxfeature.cpp`, and add user setting to toggle between Standard Bar lines and Rekordbox-style labeled phrase blocks. | `src/proto/beats.proto`, `src/track/beats.*`, `src/analyzer/plugins/rbxport/*`, `src/library/rekordbox/rekordboxfeature.cpp`, `src/waveform/renderers/*waveformrenderbeat*` |
+| 2 | **Stems 1** | **Host STFT/iSTFT & CaC-split streaming DSP pipeline** — HTDemucs-compatible `n_fft=4096`/`hop=1024` STFT/iSTFT (`HRSadeghi/demucs-onnx` & `stems.cpp` pattern), 44.1 kHz band-limited resampling, per-chunk normalization, reflection tail padding, raw `spec`+`wav` bag blending before `ISTFT`, and shared peak limiting. | `src/stems/`, `src/test/` |
+| 3 | **Stems 2** | **GPU-accelerated inference backend & model manager** — hardware GPU execution via Metal (macOS), Vulkan / DirectML / CUDA (Windows), and Vulkan / CUDA (Linux) with SIMD CPU (`AVX2`/`NEON`) fallback, startup NaN self-check, fast `htdemucs` fp16 (~95 MB) default + `htdemucs_ft` / MIT `mel_band_roformer_kim` HQ option, and C++/Qt Model Manager (`paramix-models`). | `src/stems/`, `cmake/`, `CMakeLists.txt` |
+| 4 | **Stems 3** | **Traktor-style native `.stem.mp4` generation & library stem linking** — mux 5 stereo streams (master + 4 stems in ALAC or AAC 256k) + `moov/udta/stem` NI JSON atom into `<StemFilesLocation>/`, link in schema rev 41 (`min_compatible="3"`), hook `SoundSourceProxy` into existing `SoundSourceSTEM` with red "Missing stem file" fallback, and add "Save `.stem.mp4` As…". | `src/stems/`, `src/sources/soundsourceproxy.cpp`, `src/track/steminfoimporter.*`, `res/schema.xml`, `src/library/dao/` |
+| 5 | **Stems 4** | **Background stem separation queue & worker service (`StemService`)** — persistent low-priority job queue in `CoreServices` for single-track ("Generate Stems") and batch separation, pause/cancel/resume, progress signals, and automatic 8-ch `AnalyzerWaveform` trigger. | `src/stems/`, `src/coreservices.*`, `src/analyzer/` |
+| 6 | **Waveform** | **4-stem tinted composite mode, labels & 60 fps batching** — add tinted composite mode alongside stacked lanes in `allshader::WaveformRendererStem`, dimmed muted stems, color-blind-safe palette + text labels, and `kPixelPerStrip = 2` geometry batching fix. | `src/waveform/renderers/allshader/waveformrendererstem.*`, `src/qml/qmlwaveformrenderer.*`, `res/shaders/` |
+| 7 | **UI** | **Paramix QML skin, design system & stems/phrase controls** — `res/qml/Theme` tokens, default `res/skins/Paramix/` skin, 4-row deck stem strip (gain/mute/solo/QuickFX, Acapella/Instrumental buttons, status badge), Library stem column + context menu, and `Settings → Stems` page. | `res/skins/Paramix/`, `res/qml/`, `src/qml/`, `src/preferences/dialog/` |
+| 8 | **Packaging** | **Paramix rebrand, `~/.paramix` migration wizard & cross-platform installers (W3)** — `Paramix 0.1 (based on Mixxx 2.7.0)` branding/icons/IDs, `NOTICE` + `docs/third-party-models.md`, first-run `~/.mixxx` → `~/.paramix` wizard, W4 test registration in `CMakeLists.txt`, and Windows/macOS universal/Linux installers. | `packaging/**`, `res/linux/**`, `res/images/**`, `docs/third-party-models.md`, `CMakeLists.txt` |
 
 ---
 
