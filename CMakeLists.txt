@@ -1178,6 +1178,38 @@ set(
   "CMAKE_CXX_CLANG_TIDY equivalent that only applies to mixxx sources, not bundled dependencies"
 )
 
+# Stem separation (ADR-001)
+set(
+  STEM_SEPARATION
+  "AUTO"
+  CACHE STRING
+  "Stem separation support: AUTO (use ONNX Runtime when found), ON (require it), OFF"
+)
+set_property(CACHE STEM_SEPARATION PROPERTY STRINGS AUTO ON OFF)
+
+if(STEM_SEPARATION STREQUAL "AUTO")
+  find_package(onnxruntime QUIET)
+  if(onnxruntime_FOUND)
+    set(STEM_SEPARATION_ENABLED ON)
+    message(STATUS "Stem separation: enabled (ONNX Runtime found)")
+  else()
+    set(STEM_SEPARATION_ENABLED OFF)
+    message(STATUS "Stem separation: disabled (ONNX Runtime not found)")
+  endif()
+elseif(STEM_SEPARATION STREQUAL "ON")
+  find_package(onnxruntime REQUIRED)
+  set(STEM_SEPARATION_ENABLED ON)
+  message(STATUS "Stem separation: enabled (ONNX Runtime found)")
+elseif(STEM_SEPARATION STREQUAL "OFF")
+  set(STEM_SEPARATION_ENABLED OFF)
+  message(STATUS "Stem separation: disabled (STEM_SEPARATION=OFF)")
+else()
+  message(
+    FATAL_ERROR
+    "STEM_SEPARATION must be AUTO, ON or OFF, got '${STEM_SEPARATION}'"
+  )
+endif()
+
 # Mixxx itself
 add_library(
   mixxx-lib
@@ -1851,6 +1883,10 @@ add_library(
   src/controllers/scripting/javascriptplayerproxy.cpp
   src/controllers/scripting/javascriptplayerproxy.h
 )
+if(STEM_SEPARATION_ENABLED)
+  target_link_libraries(mixxx-lib PRIVATE onnxruntime::onnxruntime)
+  target_compile_definitions(mixxx-lib PUBLIC __STEM_SEPARATION__)
+endif()
 set(MIXXX_COMMON_PRECOMPILED_HEADER src/util/assert.h)
 set(
   MIXXX_LIB_PRECOMPILED_HEADER
