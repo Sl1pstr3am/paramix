@@ -20,9 +20,10 @@ alternatives that were rejected, and the consequences a future contributor inher
 
 | ADR | Title | Status |
 |---|---|---|
+| [0002](0002-stem-cache.md) | Stem cache format and lifecycle | Proposed |
 | [0003](0003-grid-format.md) | Beatgrid format for bar and downbeat information | Proposed |
 
-ADR-001 (inference runtime), ADR-002 (stem cache format), ADR-004 (UI and customization)
-and ADR-005 (model distribution) are planned in
+ADR-001 (inference runtime), ADR-004 (UI and customization) and ADR-005 (model
+distribution) are planned in
 [`docs/paramix-stem-beatgrid-ui-plan.md`](../paramix-stem-beatgrid-ui-plan.md) and are not
 written yet.
