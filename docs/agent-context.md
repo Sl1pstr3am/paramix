@@ -318,6 +318,15 @@ Shared single-owner files (route through A0): `CMakeLists.txt`, `res/schema.xml`
   additive under the existing version strings; Rekordbox `beat_number` is imported and discarded;
   no inference runtime or bundled-model precedent exists. Recommendation: DSP baseline first, ML
   downbeats as a separate later decision.
+- **2026-11-12** — **ADR-003 written** to `docs/adr/0003-grid-format.md` (status: Proposed), with
+  `docs/adr/README.md` as the index and conventions file. Decision: add a `BarInfo` message
+  (`beats_per_bar`, zero-based `first_beat_in_bar`) to `BeatGrid` and `BeatMap` **additively under
+  the existing version strings**; absence of `bar` means unknown, never 4/4. Store phase relative
+  to the grid anchor, not an absolute downbeat frame, so translation and scaling preserve it.
+  Malformed bar info is ignored with a warning rather than discarding the grid. No schema revision
+  and no migration. Acceptance requires decoded-value round-trip tests and a downgrade simulation
+  that emulates an older build discarding unknown fields. The `Beats::operator==` sample-rate bug
+  (`beats.h:216-221`) is a prerequisite fix, because equality-based tests are otherwise vacuous.
 - **2026-11-11** — GitHub owner renamed `Sl1pstr3am` → **`christianstuart`**. Updated the git
   remote, README badges/links/clone URL, and every `gh`/repository reference in the plan,
   context doc and baseline report. `docs/old-context.md` intentionally left as historical record.
