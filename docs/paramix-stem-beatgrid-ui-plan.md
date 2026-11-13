@@ -16,7 +16,7 @@ Three findings shape the plan:
 2. **The beatgrid data model is already tempo-map-capable.** `mixxx::Beats` stores markers plus a terminal tempo, so variable tempo is representable today. What is missing is **detection quality** (only Queen Mary + SoundTouch heuristics), **downbeats/bars**, **confidence**, **hypotheses**, and **non-destructive editing**.
 3. **Licensing decides the ML stack.** Mixxx is GPL-2.0. HTDemucs (code *and* weights MIT) and Beat This! (code *and* weights MIT, with an ONNX export) are the license-safe, deployable choices. madmom/Essentia weights are CC BY-NC-SA; Essentia is AGPLv3; aubio is GPLv3; BS-RoFormer and MDX23C community weights ship with no license — those can be user-supplied options, not bundled defaults.
 
-**Recommendation:** execute **Option B ("Traktor-class")** in ~20–24 weeks with 6–8 concurrent agents and a hard human validation gate, preceded by a one-week repository baseline. It delivers: BeatGrid-3.0 (downbeats, confidence, tempo maps, non-destructive editor), HTDemucs-based offline separation with a model manager and cache, a stem-native waveform and mixer UI, and a QML design system. Option A is the first two milestones of B and can ship in ~10–12 weeks if the schedule is tight. Option C (real-time separation, full QML rewrite) should be deferred: live separation is 0.5–2 s latent at degraded quality even on GPU, and Traktor itself pre-computes stems.
+**Recommendation:** execute **Option B ("Traktor-class")** in ~20–24 weeks with 6–8 concurrent agents and a hard human validation gate, preceded by a one-week repository baseline. It delivers: a bar- and downbeat-aware grid (ADR-003: downbeat phase, confidence, tempo maps, non-destructive editor), HTDemucs-based offline separation with a model manager and cache, a stem-native waveform and mixer UI, and a QML design system. Option A is the first two milestones of B and can ship in ~10–12 weeks if the schedule is tight. Option C (real-time separation, full QML rewrite) should be deferred: live separation is 0.5–2 s latent at degraded quality even on GPU, and Traktor itself pre-computes stems.
 
 ### Decisions locked (2026-11-11)
 
@@ -24,7 +24,7 @@ Three findings shape the plan:
 |---|---|---|
 | 1 | **Default separator:** `htdemucs_ft` (4-model bag, ~630 MB fp16) | Best bundled quality; ~2 min per 4-min track on M-series CPU, seconds with CoreML/DirectML; `htdemucs` single remains the low-end fallback path. |
 | 2 | **Trigger:** on-demand, with optional **batch** separation | Job queue accepts one or many tracks; "Separate" and "Separate selected/all" actions; no auto-separate on import by default; pause/cancel/resume. |
-| 3 | **Downbeats/bars:** required in **v1** | BeatGrid-3.0 downbeat phase, bar lines and "set downbeat" editing are v1 acceptance criteria, not deferred; bar-aware quantise/sync land as flags in the same release. |
+| 3 | **Downbeats/bars:** required in **v1** | ADR-003 bar info (downbeat phase, bar lines) and "set downbeat" editing are v1 acceptance criteria, not deferred; bar-aware quantise/sync land as flags in the same release. |
 | 4 | **Traktor interoperability:** required | `.stem.mp4` **export** (4 ALAC/AAC streams + NI JSON atom) is v1 scope; NI `.stem.mp4` import stays compatible; validate round-trip and Traktor loading. |
 | 5 | **UI:** new QML skin **default** and **highly customizable** | Paramix QML skin ships as the default; design tokens, layout variants (2/4 deck, stem lane density), color schemes, and user-overridable QML; legacy skins remain selectable. |
 | 6 | **Platforms:** Windows x64, Linux x64 (+ arm64 where feasible), macOS arm64 **and** x86_64 | Universal macOS build; ONNX Runtime EPs mapped per platform; no iOS/Android in v1. |
@@ -62,7 +62,7 @@ provides, so phases below plan integration and polish rather than rebuilding wor
 | **Real-time audio thread** | Separation, disk I/O, model loading and allocation happen off the engine thread. `EngineDeck::processStem()` already runs in the RT callback — no new locks/allocations there. |
 | **Cross-platform** | macOS (arm64/x86_64), Windows (x64), Linux (x64/arm64). Inference via ONNX Runtime execution providers: CoreML (macOS), DirectML/CUDA (Windows), CUDA/CPU (Linux), CPU always. |
 | **Offline-first** | No cloud separation. Model files are downloaded once with checksums and an explicit license, or pre-installed by a packager. |
-| **Backward compatibility** | Existing `.stem.mp4` files must keep working; `library.beats` blobs must remain readable; a downgrade must not silently destroy grids (dual-write). |
+| **Backward compatibility** | Existing `.stem.mp4` files must keep working; `library.beats` blobs must remain readable; a downgrade must not silently destroy grids, so new grid fields are additive under the existing version strings (ADR-003). |
 | **Qt 6.4+ / QML** | QML builds require Qt ≥ 6.4 (`ComponentBehavior: Bound`); the QML skin is the modern UI path. Qt Widgets remain for library/preferences initially. |
 | **Human validation** | Audio quality is subjective; every milestone ends with a real DJ test on hardware (controller + speakers), not just CI. |
 | **Repo baseline** | The import is uncommitted, `.clang-format`, `.pre-commit-config.yaml`, `.github/` and `.gitignore` are missing. Multi-agent work needs a green, formatted, CI-backed baseline first. |
@@ -138,7 +138,7 @@ Keep the current grid representation and engine. Add an ONNX beat tracker behind
 
 ### Option B — "Traktor-class": the recommended program (≈20–24 weeks, 6–8 agents)
 
-Everything in A, plus: **BeatGrid-3.0** with downbeats, confidence, source and alternative hypotheses, dual-written with the legacy blob; a non-destructive editor and bar-aware behaviors (downbeat lines, optional bar quantise/sync, bar loops); **quality tiers** for separation (HTDemucs default, optional user-supplied RoFormer-class "Max" tier) with a proper model manager (download, checksum, license, GPU/CPU selection); a persistent job queue with resume and GC; a stem-native **4-lane waveform** with per-stem labels/colors/solo state and downbeat accents; a **new QML skin and design system** with a stem mixer strip and separation status; `.stem.mp4` export for Traktor interoperability.
+Everything in A, plus: an **additive bar/downbeat extension** to the existing grid format (ADR-003) carrying downbeat phase, confidence, source and alternative hypotheses without changing the version strings; a non-destructive editor and bar-aware behaviors (downbeat lines, optional bar quantise/sync, bar loops); **quality tiers** for separation (HTDemucs default, optional user-supplied RoFormer-class "Max" tier) with a proper model manager (download, checksum, license, GPU/CPU selection); a persistent job queue with resume and GC; a stem-native **4-lane waveform** with per-stem labels/colors/solo state and downbeat accents; a **new QML skin and design system** with a stem mixer strip and separation status; `.stem.mp4` export for Traktor interoperability.
 
 **Why choose it:** it matches the brief end-to-end and leaves a maintainable architecture. **Cost/risk:** schema work, ML packaging across three OSes, UI scope, and a longer validation cycle.
 
@@ -156,7 +156,7 @@ B plus real-time/streaming separation, warp-marker/tempo-curve grids ("Ableton-s
 | Separation | HTDemucs only | **tiers + model manager** | real-time + tiers |
 | Waveform | polish | **4-lane redesign** | per-stem stereo + zoom |
 | UI | skin refresh | **new QML skin/design system** | full QML rewrite |
-| Schema change | cache table | **BeatGrid v3 + cache** | + warp tables |
+| Schema change | cache table | **bar info + cache** | + warp tables |
 | Risk | low | **medium** | high |
 | Ship value | good | **highest** | speculative |
 
@@ -180,13 +180,13 @@ B plus real-time/streaming separation, warp-marker/tempo-curve grids ("Ableton-s
 
 ### 5.2 Grid representation
 
-**Option 1 — Rich detection, same wire format (S).** Keep `BeatGrid-2.0`/`BeatMap-1.0`; encode confidence/downbeat phase in `beats_sub_version` and store the winning hypothesis only. Zero migration risk, but bars are not real semantics and hypotheses are recomputed.
+**Option 1 — Rich detection, same wire format (S).** Keep `BeatGrid-2.0`/`BeatMap-1.0`; encode confidence/downbeat phase in `beats_sub_version` and store the winning hypothesis only. Zero migration risk, but bars are not real semantics and hypotheses are recomputed. Rejected: bars need to be first-class data, not a string convention.
 
-**Option 2 — Additive BeatGrid-3.0 with dual-write (recommended, M).** Extend `Beats` with optional confidence/source/downbeat phase and add a `BeatGrid-3.0` protobuf; keep the legacy blob in sync in a new column so older builds still read a valid 2.0 grid. Add a `beats_confidence`/`beats_source` column (nullable). Consumers learn bars incrementally. This preserves the existing API and engine code while making downbeats first-class.
+**Option 2 — Additive bar info under the existing version strings (recommended, S–M).** Add an optional `BarInfo` message (`beats_per_bar`, zero-based `first_beat_in_bar`) to `BeatGrid` and `BeatMap`, leaving the version strings unchanged; see [`docs/adr/0003-grid-format.md`](adr/0003-grid-format.md). Absence of `bar` means unknown, never 4/4. Older builds ignore the unknown protobuf field and keep a valid grid, which avoids the destructive frame-0 placeholder that an unrecognized version string triggers. No schema revision and no dual-write. Confidence and detector id stay in `beats_sub_version` until a later decision.
 
 **Option 3 — Layered model with separate hypothesis tables (L).** New `BeatGrid` value type plus `beatgrid_hypotheses` table, adapters to the old API, full editor. Cleanest long-term, highest migration/regression risk; only worth it if warp/tempo curves (Option C) are committed.
 
-**Recommendation:** Option 2 now; design the protobuf so Option 3 is a later, mechanical step.
+**Recommendation:** Option 2, as specified in ADR-003. It makes downbeats real data without a migration, and leaves Option 3 available as a later, mechanical step if warp/tempo curves are committed.
 
 ### 5.3 Separation models
 
@@ -322,27 +322,51 @@ Current market patterns: Traktor Pro 4 uses right-click offline separation with 
              └──────────────────────────────┘
 ```
 
-### 6.2 BeatGrid-3.0
+### 6.2 Bar and downbeat information (ADR-003)
 
-New protobuf version `BeatGrid-3.0` (keep 1.0/2.0/BeatMap-1.0 readers):
+The grid format is extended **additively under the existing `BeatGrid-2.0` / `BeatMap-1.0`
+version strings**; see [`docs/adr/0003-grid-format.md`](adr/0003-grid-format.md). There is no
+`BeatGrid-3.0`, no dual-write and no new column.
 
 ```proto
-message BeatGridV3 {
-  repeated BeatMarkerV3 markers = 1;   // position, beatsTillNext
-  optional int32 downbeatPhase = 2;    // beat index of bar start
-  optional double confidence = 3;      // 0..1
-  optional Source source = 4;          // ANALYZER / FILE_METADATA / USER
-  optional string detector = 5;        // "beatthis-v1" etc.
-  optional int32 meter = 6;            // 4 default
-  optional double bpmHint = 7;
+message BarInfo {
+  optional uint32 beats_per_bar = 1;      // e.g. 4
+  optional uint32 first_beat_in_bar = 2;  // zero-based ordinal of the bar-start beat
+}
+
+message BeatGrid {
+  // existing fields unchanged
+  optional BarInfo bar = 3;               // next free tag in the existing message
+}
+
+message BeatMap {
+  // existing fields unchanged
+  optional BarInfo bar = 3;               // next free tag in the existing message
 }
 ```
 
-- **Detection result** from a new `BeatDetector` interface: beats, downbeat positions, confidence, tempo segments, detector id, hypotheses (half/double, phase alternatives).
-- **Builder:** `BeatGridBuilder` converts beats → `Beats` markers (piecewise tempo), picks downbeat phase, resolves half/double using downbeat periodicity + tempo prior, and records confidence.
-- **Persistence:** write v3 into `library.beats`, keep a v2 blob in a new `beats_legacy` column (dual-write) so downgrades keep phase; add `beats_confidence REAL` and `beats_source TEXT` (nullable). Schema revision 41; DAO + migration tests.
-- **Consumers:** downbeat lines in the waveform (thick/colored); optional bar quantise, bar-length loops and downbeat-aware sync (feature-flagged); grid editor gains "set downbeat", "shift grid", hypothesis choice, confidence badge; `trySetBpm` becomes non-destructive (warn + keep map) or explicitly "flatten grid".
-- **Fallback:** if the ML model is unavailable, Queen Mary runs and the grid stays 2.0-compatible with no downbeats.
+- **Absence means unknown, never 4/4.** A grid without `bar` behaves exactly as it does today.
+- **Phase is relative to the grid anchor**, not an absolute downbeat frame, so translation and
+  scaling preserve it.
+- **Downgrades are safe.** Older builds ignore unknown protobuf fields and keep reading the
+  grid. Changing the version string is what triggers the destructive frame-0 placeholder in
+  `trackdao`, which is why the version strings do not change.
+- **Malformed bar info is ignored** with a warning; the grid is never discarded because of it.
+- **No schema revision and no migration:** the grid lives in `library.beats`.
+- **Detection result** from a new `BeatDetector` interface: beats, downbeat positions,
+  confidence, tempo segments, detector id, hypotheses (half/double, phase alternatives).
+- **Builder:** `BeatGridBuilder` converts beats → `Beats` markers (piecewise tempo), picks the
+  bar phase, resolves half/double using downbeat periodicity + tempo prior, and records
+  confidence.
+- **Confidence and detector id** stay in `beats_sub_version` for now; promoting them to real
+  fields is a separate later decision.
+- **Consumers:** downbeat lines in the waveform (thick/colored); optional bar quantise,
+  bar-length loops and downbeat-aware sync (feature-flagged); grid editor gains "set downbeat",
+  "shift grid", hypothesis choice, confidence badge; `trySetBpm` becomes non-destructive
+  (warn + keep map) or explicitly "flatten grid".
+- **Fallback:** if the ML model is unavailable, Queen Mary runs and the grid has no bar info.
+- **Prerequisite:** fix the `Beats::operator==` sample-rate comparison bug (`beats.h:216-221`,
+  it uses `&&`), otherwise equality-based round-trip tests are vacuous.
 
 ### 6.3 Separation pipeline
 
@@ -441,7 +465,7 @@ class BeatDetector {
 | Agent | Mission | Owns (directories/files) | Primary outputs |
 |---|---|---|---|
 | **A0 Architect/Integrator** | ADRs, interfaces, merge gate, nightly integration | `docs/adr/`, `CMakeLists.txt`, contract headers | ADRs, frozen interfaces, green integration branch |
-| **A1 BeatGrid core** | Grid v3, serialization, builder, editor semantics | `src/track/beats.*`, `src/track/beatfactory.*`, `src/track/beatutils.*`, `src/proto/beats.proto` | BeatGrid-3.0 + tests |
+| **A1 BeatGrid core** | Bar info, serialization, builder, editor semantics | `src/track/beats.*`, `src/track/beatfactory.*`, `src/track/beatutils.*`, `src/proto/beats.proto` | ADR-003 bar info + tests |
 | **A2 Beat ML** | Detector plugin, ONNX model, accuracy evaluation | `src/analyzer/plugins/beatml/`, `tools/beatml/` | Beat This! plugin + F-measure report |
 | **A3 Stem runtime** | ORT separator, model manager, chunking | `src/stems/` (separator/model), `tools/stems/` | Working separator + benchmarks |
 | **A4 Stem pipeline/DB** | Cache, jobs, schema, DAO, source wrapper | `src/stems/stemcache.*`, `src/library/dao/`, `res/schema.xml`, `src/sources/soundsourcestemcache.*` | Durable cache + migration |
@@ -472,8 +496,8 @@ Critical path: **A3 → A4 → A5 → A6 → integration**. A1/A2 and A7 can run
 |---|---|---|---|---|
 | **−1 Baseline** | 1 wk | A0, A8 | **DONE 2026-11-11** (`91b72cd`, `7cbd5fc`). Commit the import; restore `.clang-format`, `.pre-commit-config.yaml`, `.gitignore`, `.github/workflows`; green build/tests on all four targets (Windows x64, Linux x64, macOS arm64, macOS x86_64). No `upstream` remote — the owner's instruction is not to sync with upstream. Measured results in `docs/baseline-report.md`; run `43100769404` green on all five jobs | ✅ CI green, formatting gated |
 | **0 Discovery & spikes** | 2 wks | A0, A2, A3, A6, A8 | ADR-001 runtime/model, ADR-002 cache format, ADR-003 grid format, ADR-004 UI/customization, ADR-005 model distribution; spikes: ONNX `htdemucs_ft` on M-series/Windows/Linux; Beat This! ONNX F-measure; 8-ch FLAC write/read; 4-lane 60 fps prototype; GitHub Releases download dry run. **Stem-layer inventory done** (§3.2, §3.3) and **beatgrid audit done** (`docs/beatgrid-audit.md`); measure the in-tree qm-dsp `DownBeat` baseline before evaluating an ML downbeat model | Measured numbers + ADRs accepted |
-| **1 Contracts** | 1 wk | A0 + all | Freeze `StemSeparator`, `StemCache`, `BeatDetector`, `BeatGrid-3.0`, renderer/skin contracts; CMake flags; schema draft; manifest format; fixtures | Interfaces reviewed, skeleton builds |
-| **2.1 Build** | 2 wks | A1–A3, A6–A9 | Grid v3 core + serialization; Beat This! plugin; separator core + dummy model; **design tokens + Paramix skin shell + branding inventory**; license matrix. Drop "renderer lane prototype": `WaveformRendererStem` exists (§3.3) | Unit tests green; demo of separated fixture |
+| **1 Contracts** | 1 wk | A0 + all | Freeze `StemSeparator`, `StemCache`, `BeatDetector`, the ADR-003 bar-info grid format, renderer/skin contracts; CMake flags; schema draft; manifest format; fixtures | Interfaces reviewed, skeleton builds |
+| **2.1 Build** | 2 wks | A1–A3, A6–A9 | ADR-003 bar-info core + serialization; Beat This! plugin; separator core + dummy model; **design tokens + Paramix skin shell + branding inventory**; license matrix. Drop "renderer lane prototype": `WaveformRendererStem` exists (§3.3) | Unit tests green; demo of separated fixture |
 | **2.2 Build** | 2 wks | A3–A7 | Cache/DB/jobs (single + batch); `SoundSourceStemCache`; playback verification; **wire the existing stem renderer to separated sources** (it already handles `.stem.mp4` inputs) plus tinted composite mode; stem mixer/status UI; GitHub Releases model download manager | End-to-end: separate → load → 4 stems visible/mixable |
 | **2.3 Build** | 2 wks | A1, A5, A7, A9 | Downbeats/editor + bar behaviors (v1); `.stem.mp4` export; xrun/latency tuning; settings/library badges; rebrand packaging, installers, signed manifest | Feature-complete, cross-platform builds |
 | **3 Integration** | 2 wks | A0, A8 | Merge freeze, cross-platform QA, cache GC, error paths, upgrade/downgrade tests, Traktor export round-trip | All gates green on all four targets |
@@ -497,7 +521,7 @@ Total ≈ **20–24 weeks** with 6–8 agents active in phases 2–3. v1 scope e
 
 ### 8.1 Test pyramid
 
-- **Unit (GTest):** BeatGrid-3.0 serialization/round-trip and downgrade; detector result → builder → grid; downbeat phase; cache atomicity/GC; chunk overlap-add math; source wrapper metadata; model-manager checksum.
+- **Unit (GTest):** ADR-003 bar-info round-trip, malformed-input and downgrade simulation; detector result → builder → grid; downbeat phase; cache atomicity/GC; chunk overlap-add math; source wrapper metadata; model-manager checksum.
 - **Golden audio:** synthetic 4-band mix for plumbing (identity separator); NI `.stem.mp4` fixtures already in `src/test/stems` for playback; 5–10 CC-licensed tracks with hand-labeled beats for F-measure; MUSDB18-HQ dev-only for SDR (never committed).
 - **End-to-end:** import → separate → load → assert 8 channels, 4 stem controls, waveform stem data, mute/solo, unload/reload, library move.
 - **Regression:** old library opens; downgrade build reads the dual-written 2.0 grid; Serato import/export unchanged; `.stem.mp4` playback unchanged.
@@ -533,7 +557,7 @@ Two DJ sessions per milestone: one technical (beat alignment, stem bleed, FX, la
 | 8-ch FLAC streaming glitches | Playback artifacts | Prefetch/LRU tuning; sequential layout; test HDD/network drives; fallback to premix |
 | Phase/comb filtering when stems are summed after gain/fade | Audible artifacts | Keep per-stem gain/mute in the linear mix; avoid independent per-stem resampling; A/B against the original; document a "sum to original" check |
 | Model update invalidates every cache entry | Re-separation storm | Cache key includes model id + version; migrate old entries lazily; warn in UI; keep previous cache until space pressure |
-| Schema/downgrade data loss | User grids destroyed | BeatGrid-3.0 dual-write; migration tests; backup on upgrade |
+| Schema/downgrade data loss | User grids destroyed | Additive fields under unchanged version strings (ADR-003); round-trip and downgrade tests; backup on upgrade |
 | QML skin scope creep / library parity | Schedule slip | Hybrid shell: keep legacy library/prefs; freeze skin scope at deck/mixer/settings |
 | Waveform GPU cost (48 verts/px) | Frame drops | Lane batching, dirty-only uploads, precision fix, per-deck budget |
 | Fork baseline (no CI, missing dotfiles) | Agents can't verify | Phase −1 mandatory |
@@ -599,9 +623,9 @@ Two DJ sessions per milestone: one technical (beat alignment, stem bleed, FX, la
 - A4: write/read an 8-channel FLAC; verify `SoundSourceFLAC` 8-ch playback through `EngineDeck`.
 - A6: prototype 4-lane renderer geometry and measure frame time.
 
-**Days 6–8 (contracts):** ADRs 001–005 (runtime/model, cache, grid, UI/customization, model distribution); `src/stems/` headers; `BeatGrid-3.0` proto; schema draft; model manifest schema; `docs/third-party-models.md` skeleton.
+**Days 6–8 (contracts):** ADRs 001–005 (runtime/model, cache, grid, UI/customization, model distribution); `src/stems/` headers; ADR-003 `BarInfo` proto; schema draft; model manifest schema; `docs/third-party-models.md` skeleton.
 
-**Days 9–10 (skeleton):** CMake flags; `StemCache` read/write with a dummy separator; BeatGrid-3.0 serialization test; design tokens + `res/skins/Paramix/skin.ini` + `main.qml` shell with Paramix branding; nightly CI.
+**Days 9–10 (skeleton):** CMake flags; `StemCache` read/write with a dummy separator; ADR-003 bar-info serialization test; design tokens + `res/skins/Paramix/skin.ini` + `main.qml` shell with Paramix branding; nightly CI.
 
 ---
 

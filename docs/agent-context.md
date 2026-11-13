@@ -318,6 +318,14 @@ Shared single-owner files (route through A0): `CMakeLists.txt`, `res/schema.xml`
   additive under the existing version strings; Rekordbox `beat_number` is imported and discarded;
   no inference runtime or bundled-model precedent exists. Recommendation: DSP baseline first, ML
   downbeats as a separate later decision.
+- **2026-11-12** — **Plan reconciled with ADR-003.** `docs/paramix-stem-beatgrid-ui-plan.md` still
+  recommended `BeatGrid-3.0`, dual-writing a legacy blob and adding `beats_legacy` /
+  `beats_confidence` columns, which ADR-003 rejects because a new version string makes
+  `trackdao` replace the grid with a frame-0 placeholder. Rewrote §5.2 Option 2, §6.2, the
+  Option B summary, the schema-change comparison row, the A1 row, the contracts and build phase
+  rows, the unit-test row, the downgrade risk row and the 10-day plan to the additive `BarInfo`
+  design with unchanged version strings. No schema revision for the grid. ADR-002 merged as
+  `f94c1de` (PR #9).
 - **2026-11-12** — **ADR-002 written** to `docs/adr/0002-stem-cache.md` (status: Proposed).
   Decision: one 8-channel FLAC plus a `meta.json` sidecar per track, at the **source** sample rate
   and exact frame count so beatgrid/cue frames stay aligned, interleaved `1L1R2L2R3L3R4L4R` to
