@@ -1178,6 +1178,38 @@ set(
   "CMAKE_CXX_CLANG_TIDY equivalent that only applies to mixxx sources, not bundled dependencies"
 )
 
+# Stem separation (ADR-001)
+set(
+  STEM_SEPARATION
+  "AUTO"
+  CACHE STRING
+  "Stem separation support: AUTO (use ONNX Runtime when found), ON (require it), OFF"
+)
+set_property(CACHE STEM_SEPARATION PROPERTY STRINGS AUTO ON OFF)
+
+if(STEM_SEPARATION STREQUAL "AUTO")
+  find_package(onnxruntime QUIET)
+  if(onnxruntime_FOUND)
+    set(STEM_SEPARATION_ENABLED ON)
+    message(STATUS "Stem separation: enabled (ONNX Runtime found)")
+  else()
+    set(STEM_SEPARATION_ENABLED OFF)
+    message(STATUS "Stem separation: disabled (ONNX Runtime not found)")
+  endif()
+elseif(STEM_SEPARATION STREQUAL "ON")
+  find_package(onnxruntime REQUIRED)
+  set(STEM_SEPARATION_ENABLED ON)
+  message(STATUS "Stem separation: enabled (ONNX Runtime found)")
+elseif(STEM_SEPARATION STREQUAL "OFF")
+  set(STEM_SEPARATION_ENABLED OFF)
+  message(STATUS "Stem separation: disabled (STEM_SEPARATION=OFF)")
+else()
+  message(
+    FATAL_ERROR
+    "STEM_SEPARATION must be AUTO, ON or OFF, got '${STEM_SEPARATION}'"
+  )
+endif()
+
 # Mixxx itself
 add_library(
   mixxx-lib
@@ -1627,6 +1659,8 @@ add_library(
   src/stems/demucsnormalization.cpp
   src/stems/demucsstft.cpp
   src/stems/stemseparation.cpp
+  src/stems/stemseparatorfactory.cpp
+  src/stems/stemseparation.cpp
   src/track/albuminfo.cpp
   src/track/beatfactory.cpp
   src/track/beats.cpp
@@ -1851,6 +1885,14 @@ add_library(
   src/controllers/scripting/javascriptplayerproxy.cpp
   src/controllers/scripting/javascriptplayerproxy.h
 )
+if(STEM_SEPARATION_ENABLED)
+  target_sources(mixxx-lib PRIVATE src/stems/demucsonnxseparator.cpp)
+  target_include_directories(mixxx-lib PRIVATE lib/demucs-onnx/include)
+  target_link_libraries(mixxx-lib PRIVATE onnxruntime::onnxruntime)
+  target_compile_definitions(mixxx-lib PUBLIC __STEM_SEPARATION__)
+else()
+  target_sources(mixxx-lib PRIVATE src/stems/demucsonnxseparator_stub.cpp)
+endif()
 set(MIXXX_COMMON_PRECOMPILED_HEADER src/util/assert.h)
 set(
   MIXXX_LIB_PRECOMPILED_HEADER
@@ -2919,6 +2961,7 @@ if(BUILD_TESTING)
     src/test/dbconnectionpool_test.cpp
     src/test/dbidtest.cpp
     src/test/demucsdsphelpertest.cpp
+    src/test/demucsonnxseparatortest.cpp
     src/test/demucsstfttest.cpp
     src/test/directorydaotest.cpp
     src/test/duration_test.cpp
@@ -5727,4 +5770,19 @@ if(APPLE AND MACOS_BUNDLE)
     @ONLY
   )
   install(SCRIPT "${CMAKE_CURRENT_BINARY_DIR}/BundleInstall.cmake")
+endif()
+
+if(WIN32 AND STEM_SEPARATION_ENABLED AND onnxruntime_RUNTIME)
+  foreach(_target mixxx mixxx-test)
+    if(TARGET ${_target})
+      add_custom_command(
+        TARGET ${_target}
+        POST_BUILD
+        COMMAND
+          ${CMAKE_COMMAND} -E copy_if_different "${onnxruntime_RUNTIME}"
+          "$<TARGET_FILE_DIR:${_target}>"
+        VERBATIM
+      )
+    endif()
+  endforeach()
 endif()

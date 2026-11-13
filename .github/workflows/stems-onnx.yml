@@ -1,0 +1,100 @@
+name: Stems ONNX
+
+# Dedicated build for the optional stem separation backend. This does not touch
+# ci.yml: it downloads ONNX Runtime, generates a tiny model with the
+# demucs-onnx tensor contract, builds with STEM_SEPARATION=ON and runs only the
+# backend tests.
+
+on:
+  pull_request:
+    paths:
+      - "src/stems/**"
+      - "src/test/demucsonnxseparatortest.cpp"
+      - "lib/demucs-onnx/**"
+      - "tools/make_test_demucs_onnx.py"
+      - "cmake/modules/Findonnxruntime.cmake"
+      - "CMakeLists.txt"
+      - "docs/stems-onnx.md"
+      - ".github/workflows/stems-onnx.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  linux-ort:
+    name: Linux x64 + ONNX Runtime
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+
+      - name: Install build dependencies
+        run: tools/debian_buildenv.sh setup
+
+      - name: Install ONNX Runtime
+        run: |
+          set -euo pipefail
+          version=1.32.0
+          url="https://github.com/microsoft/onnxruntime/releases/download/v${version}/onnxruntime-linux-x64-${version}.tgz"
+          root="${RUNNER_TEMP}/onnxruntime"
+          mkdir -p "${root}"
+          curl -fL --retry 5 --retry-delay 10 --retry-all-errors \
+            --connect-timeout 30 -o "${RUNNER_TEMP}/ort.tgz" "${url}"
+          tar xzf "${RUNNER_TEMP}/ort.tgz" -C "${root}" --strip-components=1
+          echo "STEM_SEPARATION_ORT_ROOT=${root}" >> "${GITHUB_ENV}"
+
+      - name: Generate tiny test model
+        run: |
+          set -euo pipefail
+          python3 -m pip install --user --quiet onnx || \
+            python3 -m pip install --quiet --break-system-packages onnx
+          out="${RUNNER_TEMP}/testmodel"
+          python3 tools/make_test_demucs_onnx.py --out-dir "${out}"
+          echo "PARAMIX_TEST_DEMUCS_ONNX=${out}/testdemucs.onnx" >> "${GITHUB_ENV}"
+
+      - name: Restore ccache cache
+        id: ccache_restore
+        uses: actions/cache/restore@v4
+        with:
+          path: /home/runner/.cache/ccache
+          key: stems-ort-linux-${{ hashFiles('src/**', 'CMakeLists.txt', 'cmake/**') }}
+          restore-keys: |
+            stems-ort-linux-
+
+      - name: Set up ccache
+        run: |
+          ccache --zero-stats
+          ccache --max-size=2G
+
+      - name: Configure
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DQML=ON \
+            -DSTEM_SEPARATION=ON
+
+      - name: Build backend tests
+        run: cmake --build build --target mixxx-test --parallel "$(nproc)"
+
+      - name: Test backend
+        run: |
+          export LD_LIBRARY_PATH="${STEM_SEPARATION_ORT_ROOT}/lib:${LD_LIBRARY_PATH:-}"
+          ctest --test-dir build -R "DemucsOnnxSeparatorTest" --output-on-failure
+
+      - name: Print compiler cache stats
+        run: |
+          ccache --show-stats
+          ccache --cleanup
+
+      - name: Save ccache cache
+        if: >-
+          github.event_name == 'push' &&
+          steps.ccache_restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: /home/runner/.cache/ccache
+          key: stems-ort-linux-${{ hashFiles('src/**', 'CMakeLists.txt', 'cmake/**') }}
