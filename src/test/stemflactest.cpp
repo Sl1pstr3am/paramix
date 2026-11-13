@@ -1,10 +1,10 @@
+#include <sndfile.h>
+
+#include <QByteArray>
 #include <QFile>
 #include <QTemporaryDir>
 #include <QUrl>
 #include <QtDebug>
-
-#include <sndfile.h>
-
 #include <cmath>
 #include <cstddef>
 #include <ostream>
