@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <vector>
@@ -327,6 +328,99 @@ TEST_F(StemSeparationTest, RejectsNegativeFrameCount) {
     EXPECT_FALSE(StemSeparation::separate(
             &backend, input.data(), -1, output.data()));
     EXPECT_EQ(0, backend.callCount());
+}
+
+TEST_F(StemSeparationTest, StreamsWithoutHoldingTheWholeTrack) {
+    GainBackend backend;
+    const SINT frameCount = 10 * kWindowFrames + 37;
+    const auto input = makeInput(frameCount);
+    auto buffered = makeOutput(frameCount);
+    auto streamed = makeOutput(frameCount);
+
+    ASSERT_TRUE(StemSeparation::separate(
+            &backend, input.data(), frameCount, buffered.data()));
+
+    SINT readPosition = 0;
+    SINT writePosition = 0;
+    SINT largestChunk = 0;
+    ASSERT_TRUE(StemSeparation::separate(
+            &backend,
+            frameCount,
+            [&input, &readPosition](CSAMPLE* pBuffer, SINT frames) {
+                std::copy(input.begin() + readPosition * 2,
+                        input.begin() + (readPosition + frames) * 2,
+                        pBuffer);
+                readPosition += frames;
+                return frames;
+            },
+            [&streamed, &writePosition, &largestChunk](
+                    const CSAMPLE* pBuffer, SINT frames) {
+                largestChunk = std::max(largestChunk, frames);
+                std::copy(pBuffer,
+                        pBuffer + frames * kStemChannelCount,
+                        streamed.begin() +
+                                writePosition * kStemChannelCount);
+                writePosition += frames;
+                return true;
+            }));
+
+    EXPECT_EQ(frameCount, readPosition);
+    EXPECT_EQ(frameCount, writePosition);
+    // Output is handed over one hop at a time, never a whole track.
+    EXPECT_LE(largestChunk, kWindowFrames);
+    EXPECT_EQ(buffered, streamed);
+}
+
+TEST_F(StemSeparationTest, StreamingAbortsOnShortRead) {
+    GainBackend backend;
+    const SINT frameCount = 4 * kWindowFrames;
+    auto output = makeOutput(frameCount);
+    SINT writePosition = 0;
+
+    EXPECT_FALSE(StemSeparation::separate(
+            &backend,
+            frameCount,
+            [](CSAMPLE* /*pBuffer*/, SINT frames) { return frames - 1; },
+            [&output, &writePosition](const CSAMPLE* pBuffer, SINT frames) {
+                std::copy(pBuffer,
+                        pBuffer + frames * kStemChannelCount,
+                        output.begin() +
+                                writePosition * kStemChannelCount);
+                writePosition += frames;
+                return true;
+            }));
+    EXPECT_EQ(0, writePosition);
+}
+
+TEST_F(StemSeparationTest, StreamingAbortsWhenOutputRejects) {
+    GainBackend backend;
+    const SINT frameCount = 4 * kWindowFrames;
+    const auto input = makeInput(frameCount);
+    SINT readPosition = 0;
+
+    EXPECT_FALSE(StemSeparation::separate(
+            &backend,
+            frameCount,
+            [&input, &readPosition](CSAMPLE* pBuffer, SINT frames) {
+                std::copy(input.begin() + readPosition * 2,
+                        input.begin() + (readPosition + frames) * 2,
+                        pBuffer);
+                readPosition += frames;
+                return frames;
+            },
+            [](const CSAMPLE* /*pBuffer*/, SINT /*frames*/) { return false; }));
+    EXPECT_EQ(kWindowFrames, readPosition);
+}
+
+TEST_F(StemSeparationTest, StreamingRejectsMissingCallbacks) {
+    GainBackend backend;
+    EXPECT_FALSE(StemSeparation::separate(
+            &backend, 1, SeparationInputCallback(), SeparationOutputCallback()));
+    EXPECT_FALSE(StemSeparation::separate(
+            &backend,
+            1,
+            [](CSAMPLE*, SINT frames) { return frames; },
+            SeparationOutputCallback()));
 }
 
 } // namespace
