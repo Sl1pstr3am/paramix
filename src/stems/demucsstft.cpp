@@ -99,7 +99,15 @@ void demucsAnalyze(const CSAMPLE* pStereo, SINT frames, float* pCac) {
     }
 }
 
-void demucsSynthesize(const float* pCac, SINT frames, CSAMPLE* pStereo) {
+namespace {
+
+/// Shared body of demucsSynthesize() and demucsReconstruct(). `pResidual` may
+/// alias `pStereo`; the residual is read before the matching output is
+/// written, so an in-place combination is safe.
+void synthesize(const float* pCac,
+        const CSAMPLE* pResidual,
+        SINT frames,
+        CSAMPLE* pStereo) {
     if (frames <= 0) {
         return;
     }
@@ -149,10 +157,29 @@ void demucsSynthesize(const float* pCac, SINT frames, CSAMPLE* pStereo) {
         const SINT index = kEdgePad + i;
         const double windowSum = envelope[index];
         const double scale = windowSum > 0.0 ? 1.0 / windowSum : 0.0;
-        pStereo[i * 2] = static_cast<CSAMPLE>(accumulator[index] * scale);
+        const CSAMPLE residualLeft =
+                pResidual != nullptr ? pResidual[i * 2] : CSAMPLE_ZERO;
+        const CSAMPLE residualRight =
+                pResidual != nullptr ? pResidual[i * 2 + 1] : CSAMPLE_ZERO;
+        pStereo[i * 2] = static_cast<CSAMPLE>(
+                accumulator[index] * scale + residualLeft);
         pStereo[i * 2 + 1] = static_cast<CSAMPLE>(
-                accumulator[static_cast<std::size_t>(length) + index] * scale);
+                accumulator[static_cast<std::size_t>(length) + index] * scale +
+                residualRight);
     }
+}
+
+} // namespace
+
+void demucsSynthesize(const float* pCac, SINT frames, CSAMPLE* pStereo) {
+    synthesize(pCac, nullptr, frames, pStereo);
+}
+
+void demucsReconstruct(const float* pCac,
+        const CSAMPLE* pResidual,
+        SINT frames,
+        CSAMPLE* pStereo) {
+    synthesize(pCac, pResidual, frames, pStereo);
 }
 
 } // namespace mixxx::stems

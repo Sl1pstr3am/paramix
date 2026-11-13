@@ -105,4 +105,22 @@ void demucsAnalyze(const CSAMPLE* pStereo, SINT frames, float* pCac);
 ///        kDemucsSampleRate
 void demucsSynthesize(const float* pCac, SINT frames, CSAMPLE* pStereo);
 
+/// Reconstructs one stem as `residual + iSTFT(spectrum)`.
+///
+/// Hybrid HTDemucs models return both a spectrogram and a time-domain estimate;
+/// this is the final combination for one stem (and for a bag, run it once after
+/// DemucsBagAverage::finalize()).
+///
+/// @param pCac `demucsCacFloatCount(frames)` floats in the layout described
+///        by demucsCacIndex(); must not be null when frames > 0
+/// @param pResidual interleaved stereo time-domain estimate, or null for zero;
+///        may alias pStereo
+/// @param frames number of output frames
+/// @param pStereo receives `frames * 2` interleaved samples at
+///        kDemucsSampleRate
+void demucsReconstruct(const float* pCac,
+        const CSAMPLE* pResidual,
+        SINT frames,
+        CSAMPLE* pStereo);
+
 } // namespace mixxx::stems
