@@ -8,6 +8,7 @@
 #include "analyzer/analyzertrack.h"
 #include "analyzer/constants.h"
 #include "analyzer/plugins/analyzerqueenmarybeats.h"
+#include "analyzer/plugins/analyzerrbxportbeats.h"
 #include "analyzer/plugins/analyzersoundtouchbeats.h"
 #include "library/rekordbox/rekordboxconstants.h"
 #include "track/beatfactory.h"
@@ -19,6 +20,7 @@ QList<mixxx::AnalyzerPluginInfo> AnalyzerBeats::availablePlugins() {
     // First one below is the default
     plugins.append(mixxx::AnalyzerQueenMaryBeats::pluginInfo());
     plugins.append(mixxx::AnalyzerSoundTouchBeats::pluginInfo());
+    plugins.append(mixxx::AnalyzerRbxportBeats::pluginInfo());
     return plugins;
 }
 
@@ -107,6 +109,8 @@ bool AnalyzerBeats::initialize(const AnalyzerTrack& track,
             m_pPlugin = std::make_unique<mixxx::AnalyzerQueenMaryBeats>();
         } else if (m_pluginId == mixxx::AnalyzerSoundTouchBeats::pluginInfo().id()) {
             m_pPlugin = std::make_unique<mixxx::AnalyzerSoundTouchBeats>();
+        } else if (m_pluginId == mixxx::AnalyzerRbxportBeats::pluginInfo().id()) {
+            m_pPlugin = std::make_unique<mixxx::AnalyzerRbxportBeats>();
         } else {
             // This must not happen, because we have already verified above
             // that the PlugInId is valid

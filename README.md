@@ -44,6 +44,9 @@ Paramix runs on Windows, GNU/Linux and macOS (Apple Silicon and Intel).
 - Downbeat- and bar-aware beatgrids, with confidence reporting and automatic tempo maps for
   material that is not a constant 4/4.
 - Modern ML beat and downbeat detection with a fast built-in analyzer as fallback.
+- Selectable beat detection engines: Queen Mary, SoundTouch, and a C++ port of
+  [rbxport](https://github.com/chrisle/rbxport)'s `rbl-analysis` pipeline (kick-attack placement,
+  arrangement-based downbeats and tempo-change following, GPL-2.0-or-later).
 - Non-destructive grid editing: move, scale, shift and set downbeats without flattening a
   variable-tempo grid, with undo.
 - Bar-aware quantize, loops and sync (optional, off by default).
