@@ -1194,8 +1194,14 @@ add_library(
   src/analyzer/analyzerwaveform.cpp
   src/analyzer/plugins/analyzerqueenmarybeats.cpp
   src/analyzer/plugins/analyzerqueenmarykey.cpp
+  src/analyzer/plugins/analyzerrbxportbeats.cpp
   src/analyzer/plugins/analyzersoundtouchbeats.cpp
   src/analyzer/plugins/buffering_utils.cpp
+  src/analyzer/plugins/rbxport/attack.cpp
+  src/analyzer/plugins/rbxport/downbeat.cpp
+  src/analyzer/plugins/rbxport/grid.cpp
+  src/analyzer/plugins/rbxport/onset.cpp
+  src/analyzer/plugins/rbxport/tempo.cpp
   src/analyzer/trackanalysisscheduler.cpp
   src/audio/frame.cpp
   src/audio/signalinfo.cpp
@@ -2955,6 +2961,7 @@ if(BUILD_TESTING)
     src/test/readaheadmanager_test.cpp
     src/test/replaygaintest.cpp
     src/test/rescalertest.cpp
+    src/test/rbxportgridtest.cpp
     src/test/rgbcolor_test.cpp
     src/test/rotary_test.cpp
     src/test/samplebuffertest.cpp

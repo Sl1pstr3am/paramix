@@ -121,6 +121,32 @@ table (schema is at revision 40; the plan needs 41). Present from upstream: `src
 `analyzerqueenmarybeats`, `analyzersoundtouchbeats`, `waveformrendererstem`, `qmlstemsmodel`,
 `soundsourcestem`.
 
+### 3.5 Current progress (2026-11-12)
+
+The baseline is closed and feature work is landing. Current state:
+
+| Area | Status |
+|---|---|
+| W1 controller mappings | **Merged** (#3): Hercules Mk2 + Traktor F1 stem controls |
+| W2 QML accessibility/localization | **Merged** (#4): QML a11y labels, keyboard navigation, i18n scaffolding |
+| W4 test infrastructure | **Merged** (#6): beatgrid/stem golden fixtures, F-measure helper, fixture generators |
+| W5 model hosting | **Merged** (#5): `paramix_model_fetch.py`, manifest spec, self-tests |
+| W6 QML Qt-API guard | **Merged** (#15): CI workflow + rule self-tests |
+| ADRs 001-003 | **Merged** (#8, #9, #14): inference runtime, stem cache, additive `BarInfo` grid format |
+| 8-channel FLAC spike | **Merged** (#12): libsndfile round-trip at 44.1/48/96 kHz, 16/24-bit |
+| Stem separation engine | **Merged** (#13): streaming `StemSeparation`, backend seam, 15 tests. No ONNX backend yet |
+| rbxport beat grid engine | **PR #16**: C++ port of rbxport `rbl-analysis`, third beat detector; green on all CI targets |
+| BeatGrid `BarInfo` | Not started (ADR-003 design only) |
+| Stem cache / schema 41 | Not started (ADR-002 design only) |
+| ONNX runtime + model backend | Not started |
+| Paramix QML skin overhaul | Not started |
+| Packaging/installers | Not started |
+
+Build status: the Windows x64 local build (`mixxx`, `mixxx-test`) is green. CI is green on
+Linux x64, Windows x64, macOS arm64 and macOS x86_64 for the merged stem engine and the
+rbxport PR. The Linux-only stem failure was an uninitialized `SampleBuffer` accumulator,
+fixed before #13 merged.
+
 ---
 
 ## 4. Where the code already supports the plan (don't rebuild these)
@@ -392,3 +418,16 @@ Shared single-owner files (route through A0): `CMakeLists.txt`, `res/schema.xml`
   windows and per-window progress. Tests use copy, per-stem-gain and failing backends and cover
   zero, one, short, exact-window and long inputs. A standalone run over 13 track lengths had a worst
   reconstruction error of 6e-8. No ORT dependency yet.
+- **2026-11-12** — **W1/W2/W4/W5/W6 merged.** Controller mappings (#3), QML
+  accessibility/localization (#4), beatgrid/stem golden fixtures (#6), model hosting (#5), and the
+  QML Qt-API guard (#15) are on `main`. ADRs 001-003 (#8, #9, #14) and the 8-channel FLAC spike
+  (#12) are also merged.
+- **2026-11-12** — **Stem separation engine merged** (#13, `e0fad77`). Streaming `StemSeparation`
+  with a backend seam; 15 tests. Linux CI exposed an uninitialized `SampleBuffer` accumulator in the
+  first window; fixed by clearing it before accumulation and by checking the streamed output against
+  the input directly. The fix landed on the PR branch before merge.
+- **2026-11-12** — **rbxport beat grid engine added** (PR #16). C++ port of `rbl-analysis`
+  onset/attack/tempo/downbeat/grid stages, registered as the third `AnalyzerBeats` plugin
+  (`rbxport-analysis:0`) and exposed in Preferences → Beat Detection. Ported tempo tests plus
+  synthetic end-to-end grid/plugin tests; 10 rbxport tests green. The PR was rebased onto current
+  `main` so it carries only the rbxport change.
