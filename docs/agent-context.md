@@ -113,10 +113,13 @@ no telemetry; macOS 13+ / Win10 21H2+ / Ubuntu 22.04+ / Fedora 39+ as the suppor
 | CI actually green on 4 targets | **DONE** — run `43100769404` on `18c817b` is green on all five jobs: `checks`, Linux x64 (**1302/1302 tests**), Windows x64, macOS arm64 (39m49s), macOS x86_64 (1h15m46s). Details in `docs/baseline-report.md` §4. Test binary sets `QT_QPA_PLATFORM=offscreen` itself (`src/test/main.cpp`), so no xvfb is needed |
 
 ### 3.4 Feature work
-**Not started.** Verified absent: `src/stems/`, `SoundSourceStemCache`, `BeatGrid-3.0`,
-`src/analyzer/plugins/beatml/`, `res/skins/Paramix/`, `docs/adr/`. Schema is at revision 40
-(plan needs 41). Present from upstream: `src/track/beat*`, `analyzerqueenmarybeats`,
-`analyzersoundtouchbeats`, `waveformrendererstem`, `qmlstemsmodel`, `soundsourcestem`.
+**In progress.** Present: `docs/adr/` (ADR-001 Proposed, ADR-002 and ADR-003 accepted for
+review), `src/stems/` (`StemSeparatorBackend`, `StemSeparation`), and the proven 8-channel FLAC
+container. Still absent: `SoundSourceStemCache`, the ONNX Runtime backend and the
+`STEM_SEPARATION` flag, `src/analyzer/plugins/beatml/`, `res/skins/Paramix/`, and the `stem_cache`
+table (schema is at revision 40; the plan needs 41). Present from upstream: `src/track/beat*`,
+`analyzerqueenmarybeats`, `analyzersoundtouchbeats`, `waveformrendererstem`, `qmlstemsmodel`,
+`soundsourcestem`.
 
 ---
 
@@ -374,3 +377,18 @@ Shared single-owner files (route through A0): `CMakeLists.txt`, `res/schema.xml`
   rich text). Recovered from the `.rtf` content, rewritten as Markdown with the new owner name
   and American spelling. The stray `README.rtf` was left in place (untracked) for the owner to
   delete; do not commit it.
+- **2026-11-12** — **8-channel FLAC spike passed** (PR #12, `03ad15a`). Wrote 8192 frames of eight
+  distinct tones with libsndfile at 44.1/48/96 kHz in 16- and 24-bit, read them back through
+  `SoundSourceFLAC` and `SoundSourceProxy`, and asserted channel count, sample rate, frame count,
+  the `fLaC` magic and every sample within two quantization steps. Linux x64 and Windows x64 ran
+  the tests; both macOS jobs built and linked but do not run the suite, so the runtime half is
+  unproven there (baseline gap). ADR-002's container is proven and the four-stereo-FLAC fallback is
+  not needed. `mixxx-test` now links `SndFile::sndfile` explicitly, because `mixxx-lib` links it
+  `PRIVATE`.
+- **2026-11-12** — **Stem separation engine started** (PR #13). `src/stems/stemseparatorbackend.h`
+  is the runtime-agnostic seam: one window, stereo in, eight interleaved channels out in
+  drums/bass/other/vocals order. `src/stems/stemseparation.{h,cpp}` streams a whole track with 75%
+  hops, a linear crossfade normalized by the summed weight, tail zero-padding, cancellation between
+  windows and per-window progress. Tests use copy, per-stem-gain and failing backends and cover
+  zero, one, short, exact-window and long inputs. A standalone run over 13 track lengths had a worst
+  reconstruction error of 6e-8. No ORT dependency yet.
