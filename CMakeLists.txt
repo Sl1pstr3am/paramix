@@ -2968,6 +2968,7 @@ if(BUILD_TESTING)
     src/test/skincontext_test.cpp
     src/test/softtakeover_test.cpp
     src/test/soundproxy_test.cpp
+    src/test/stemflactest.cpp
     src/test/soundsourceproviderregistrytest.cpp
     src/test/sqliteliketest.cpp
     src/test/synccontroltest.cpp
@@ -4826,6 +4827,11 @@ endif()
 find_package(SndFile REQUIRED)
 target_link_libraries(mixxx-lib PRIVATE SndFile::sndfile)
 target_compile_definitions(mixxx-lib PUBLIC __SNDFILE__)
+if(BUILD_TESTING)
+  # The stem FLAC round-trip test writes the cache container with libsndfile,
+  # which mixxx-lib links PRIVATE, so include dirs would not propagate.
+  target_link_libraries(mixxx-test PRIVATE SndFile::sndfile)
+endif()
 if(SndFile_SUPPORTS_SET_COMPRESSION_LEVEL)
   target_compile_definitions(
     mixxx-lib
