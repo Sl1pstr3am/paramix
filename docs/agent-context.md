@@ -318,6 +318,24 @@ Shared single-owner files (route through A0): `CMakeLists.txt`, `res/schema.xml`
   additive under the existing version strings; Rekordbox `beat_number` is imported and discarded;
   no inference runtime or bundled-model precedent exists. Recommendation: DSP baseline first, ML
   downbeats as a separate later decision.
+- **2026-11-12** — **ADR-002 written** to `docs/adr/0002-stem-cache.md` (status: Proposed).
+  Decision: one 8-channel FLAC plus a `meta.json` sidecar per track, at the **source** sample rate
+  and exact frame count so beatgrid/cue frames stay aligned, interleaved `1L1R2L2R3L3R4L4R` to
+  match `SoundSourceSTEM` and `EngineDeck::processStem()`. Per-track **generation directories**:
+  write to `tmp/`, rename into place, commit the DB row last, so the row is the commit point and
+  orphans are swept at startup. Two keys: `source_fingerprint` ("same audio?") and `pipeline_key`
+  (model weights + separation params + cache format version), so a model update adds an entry
+  instead of overwriting a valid one. New `stem_cache` table in **schema revision 41** with
+  `min_compatible="3"` — omitting it would default to 41 and lock the previous build out of the
+  library. The JSON sidecar is authoritative and the table is a rebuildable index, so losing the
+  database does not cost re-separation. Playback goes through a `SoundSourceStemCache` wrapper
+  hooked into `SoundSourceProxy::openAudioSource()`; the existing 8-channel engine, analyzers and
+  stem renderer are reused unchanged. Owner decisions: **16-bit** default (24-bit stays a supported
+  metadata value), **no default cache cap** (`CacheLimitBytes=0`, free-space warning plus preflight
+  floor instead of auto-eviction), and **best-ready-model fallback** when the preferred model has no
+  entry. The cache is disposable and never migrated. Gated on the 8-channel FLAC write/read spike on
+  all four targets; `EncoderWave` cannot write 8 channels, so a dedicated libsndfile writer is
+  required.
 - **2026-11-12** — **ADR-003 written** to `docs/adr/0003-grid-format.md` (status: Proposed), with
   `docs/adr/README.md` as the index and conventions file. Decision: add a `BarInfo` message
   (`beats_per_bar`, zero-based `first_beat_in_bar`) to `BeatGrid` and `BeatMap` **additively under

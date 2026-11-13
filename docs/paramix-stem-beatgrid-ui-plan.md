@@ -227,6 +227,10 @@ B plus real-time/streaming separation, warp-marker/tempo-curve grids ("Ableton-s
 
 ### 5.6 Cache format
 
+> Frozen by [`docs/adr/0002-stem-cache.md`](adr/0002-stem-cache.md): one 8-channel FLAC plus a
+> JSON sidecar in per-track generation directories, schema revision 41, 16-bit default, no
+> default cache cap, and best-ready-model fallback on playback.
+
 **8-channel FLAC + JSON sidecar at the original sample rate (recommended).** One lossless 8-ch file holds 4 stereo stems (FLAC supports 8 channels); JSON holds labels/colors/model/version/checksums. Read by the existing 8-ch engine path; no re-encode, no quality loss, ~50–120 MB per 4-min track. Resample model output back to the track's rate so frame positions stay aligned.
 
 **NI `.stem.mp4` (interop option).** Reuses the existing reader/waveform path and is Traktor-compatible, but AAC/ALAC encoding adds time and is lossy for AAC; libmp4v2 is already vendored. Use as **export**, not the working cache.
@@ -510,7 +514,7 @@ Total ≈ **20–24 weeks** with 6–8 agents active in phases 2–3. v1 scope e
 | Playback | 0 xruns in 2 h soak, 4 decks, 128-frame buffer; 10–20 ms total latency |
 | Waveform | ≤ 8 ms CPU/frame, 60 fps, 4 decks |
 | Memory | < 1.5 GB RSS with two separation workers |
-| Cache | ≈ 5× the compressed source per track (50–120 MB for a 4-min track); GC respects user cap |
+| Cache | 8-ch FLAC at the source rate, ≈ 85–120 MB for a 4-min track at 16-bit (ADR-002); no cap by default, optional user cap with LRU eviction, free-space preflight |
 
 ### 8.3 Human validation
 
