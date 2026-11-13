@@ -17,27 +17,29 @@ Read this first, then:
 
 ---
 
-## 1. Current state (2026-11-13)
+## 1. Current state (2026-11-13, post-merge)
 
-All four implementation PRs are open and **all five required CI jobs are green**
-on each.
+The implementation stack is **merged to `main`** by squash merge. All required
+checks were green before each merge. `main` is at `1cd8221` at the time of
+writing.
 
-| PR | Branch | What it contains | Base |
+| PR | Branch | What it contains | Status |
 |---|---|---|---|
-| [#17](https://github.com/christianstuart/paramix/pull/17) | `bradley/stems1-demucs-stft` | Host HTDemucs STFT/iSTFT (CaC boundary), 10 tests | `main` |
-| [#18](https://github.com/christianstuart/paramix/pull/18) | `bradley/stems1-dsp-postprocess` | Normalization, bag averaging, shared limiter, `demucsReconstruct`; 27 tests | #17 (stacked) |
-| [#19](https://github.com/christianstuart/paramix/pull/19) | `bradley/stems2-build-option` | `STEM_SEPARATION` AUTO/ON/OFF, ONNX Runtime discovery, vendored demucs-onnx runtime, backend + factory; 7 tests | `main` |
-| [#20](https://github.com/christianstuart/paramix/pull/20) | `bradley/stems3-stem-files` | Native stem set export: FLAC/ALAC/AAC + sidecar; 10 tests | `main` |
+| [#17](https://github.com/christianstuart/paramix/pull/17) | `bradley/stems1-demucs-stft` | Host HTDemucs STFT/iSTFT (CaC boundary), 10 tests | Merged (`bd63846`) |
+| [#18](https://github.com/christianstuart/paramix/pull/18) | `bradley/stems1-dsp-postprocess` | Normalization, bag averaging, shared limiter, `demucsReconstruct`; 27 tests | Merged (`9852835`, rebased after #17) |
+| [#19](https://github.com/christianstuart/paramix/pull/19) | `bradley/stems2-build-option` | `STEM_SEPARATION` AUTO/ON/OFF, ONNX Runtime discovery, vendored demucs-onnx runtime, backend + factory; 7 tests | Merged (`8b0f49c`) |
+| [#20](https://github.com/christianstuart/paramix/pull/20) | `bradley/stems3-stem-files` | Native stem set export: FLAC/ALAC/AAC + sidecar; 10 tests | Merged (`7cda9ed`) |
+| [#21](https://github.com/christianstuart/paramix/pull/21) | `bradley/docs-stems-status` | Backlog, Traktor correction, this handoff | Merged (`1cd8221`) |
 
-A docs PR is opened from `bradley/docs-stems-status` for this file, the two
-consolidated planning docs, and the Traktor-export correction.
+The feature branches remain on the remote but are no longer needed. The
+placeholder `STEM_SEPARATION` option and the ORT backend are now in `main`.
 
 **Program board:** <https://github.com/users/christianstuart/projects/2>
 
 | Card | Status |
 |---|---|
-| Stems 1 - host STFT/iSTFT | In review |
-| Stems 2 - ONNX Runtime backend | In review |
+| Stems 1 - host STFT/iSTFT | Done |
+| Stems 2 - ONNX Runtime backend | In progress |
 | Stems 3 - native stem set export | In progress |
 | Stems 4 - background queue/service | Todo |
 
@@ -164,16 +166,9 @@ last configured with `ON` and ORT is not present.
 
 ## 5. Next work, in order
 
-### A. Merge the open PRs
+### A. Merge status
 
-1. Merge `#17` to `main`.
-2. Retarget `#18` to `main` (`gh pr edit 18 --base main`), then merge.
-3. Merge `#19`.
-4. Merge `#20`.
-5. Merge the docs PR last.
-
-All five required checks are green. Use squash merge; do not push directly to
-`main`.
+The implementation and docs stack is merged to `main`. Start at B.
 
 ### B. Stems 3 integration (start here)
 
@@ -272,10 +267,9 @@ Read docs/handoff-stems-integration.md first, then docs/stem-file-export.md,
 docs/stems-onnx.md, docs/adr/0001-inference-runtime.md, docs/adr/0002-stem-cache.md
 and docs/parallel-work.md.
 
-The current state is four green PRs: #17 (host STFT), #18 (DSP helpers, stacked
-on #17), #19 (ONNX Runtime backend) and #20 (native FLAC/ALAC/AAC export). Merge
-them in order (retarget #18 after #17), then start Stems 3 integration: schema
-revision 41, the Settings -> Stems format controls, the context action, and
-calling writeStemSet() from the separation service after applying the shared
-limiter. Follow the repository rules in AGENTS.md and docs/parallel-work.md.
+The implementation stack is merged to `main` (#17-#20); #21 updated the docs.
+Start Stems 3 integration at section 5B: schema revision 41, the
+Settings -> Stems format controls, the context action, and calling
+writeStemSet() from the separation service after applying the shared limiter.
+Follow the repository rules in AGENTS.md and docs/parallel-work.md.
 ```
