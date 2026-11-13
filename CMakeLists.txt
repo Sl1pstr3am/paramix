@@ -1622,6 +1622,7 @@ add_library(
   src/sources/soundsourceproviderregistry.cpp
   src/sources/soundsourceproxy.cpp
   src/sources/soundsourcesndfile.cpp
+  src/stems/demucsstft.cpp
   src/stems/stemseparation.cpp
   src/track/albuminfo.cpp
   src/track/beatfactory.cpp
@@ -2914,6 +2915,7 @@ if(BUILD_TESTING)
     src/test/delayringtest.cpp
     src/test/dbconnectionpool_test.cpp
     src/test/dbidtest.cpp
+    src/test/demucsstfttest.cpp
     src/test/directorydaotest.cpp
     src/test/duration_test.cpp
     src/test/durationutiltest.cpp
