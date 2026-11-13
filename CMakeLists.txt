@@ -1616,6 +1616,7 @@ add_library(
   src/sources/soundsourceproviderregistry.cpp
   src/sources/soundsourceproxy.cpp
   src/sources/soundsourcesndfile.cpp
+  src/stems/stemseparation.cpp
   src/track/albuminfo.cpp
   src/track/beatfactory.cpp
   src/track/beats.cpp
@@ -2970,6 +2971,7 @@ if(BUILD_TESTING)
     src/test/soundproxy_test.cpp
     src/test/soundsourceproviderregistrytest.cpp
     src/test/sqliteliketest.cpp
+    src/test/stemseparationtest.cpp
     src/test/synccontroltest.cpp
     src/test/synctrackmetadatatest.cpp
     src/test/tableview_test.cpp
