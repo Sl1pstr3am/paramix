@@ -75,7 +75,7 @@ Item {
         anchors.right: parent.right
         group: root.group
         key: "pfl"
-        text: "PFL"
+        text: qsTr("PFL")
         toggleable: true
     }
 }

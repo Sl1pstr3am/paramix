@@ -14,6 +14,8 @@ Skin.ControlButton {
     key: "play"
     toggleable: trackLoadedControl.value == 1
 
+    Accessible.name: qsTr("Play")
+
     contentItem: Item {
         id: content
 
@@ -62,7 +64,7 @@ Skin.ControlButton {
             font.family: Theme.fontFamily
             font.pixelSize: Theme.buttonFontPixelSize
             horizontalAlignment: Text.AlignHCenter
-            text: "Play"
+            text: qsTr("Play")
             verticalAlignment: Text.AlignVCenter
 
             states: [

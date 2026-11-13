@@ -77,14 +77,14 @@ Mixxx.WaveformOverview {
         MixxxControls.WaveformOverviewMarkerLayer {
             anchors.fill: parent
             cueColor: root.cueMarkerColor
-            cueText: "C"
+            cueText: qsTr("C")
             group: root.group
             introOutroColor: root.introOutroMarkerColor
-            introStartText: "IN"
+            introStartText: qsTr("IN")
             labelColor: "white"
             loopColor: root.loopMarkerColor
-            loopStartText: "LOOP"
-            outroStartText: "OUT"
+            loopStartText: qsTr("LOOP")
+            outroStartText: qsTr("OUT")
             showHotcueLabels: false
             showIntroOutroLabels: false
             showLoopLabel: false

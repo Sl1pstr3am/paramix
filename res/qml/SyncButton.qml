@@ -37,9 +37,9 @@ Skin.Button {
         switch (mode) {
             case SyncButton.SyncMode.ImplicitLeader:
                 case SyncButton.SyncMode.ExplicitLeader:
-                    return "Leader";
+                    return qsTr("Leader");
             default:
-                return "Sync";
+                return qsTr("Sync");
         }
     }
     highlight: enabledControl.value

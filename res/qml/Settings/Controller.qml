@@ -33,7 +33,7 @@ Category {
         root.load();
     }
 
-    label: "Controllers"
+    label: qsTr("Controllers")
 
     Component.onCompleted: {
         load();
@@ -164,7 +164,7 @@ Category {
                         }
                         Skin.FormButton {
                             activeColor: "#999999"
-                            text: "Create device"
+                            text: qsTr("Create device")
                             visible: unknownDeviceRow.containsMouse || hovered || unknownDevicesList.currentIndex == index
 
                             onPressed: {
@@ -192,7 +192,7 @@ Category {
                         color: '#FFFFFF'
                         font.pixelSize: 16
                         font.weight: Font.DemiBold
-                        text: 'Other detected devices'
+                        text: qsTr("Other detected devices")
                     }
                 }
             }
@@ -212,7 +212,7 @@ Category {
             activeColor: "#999999"
             backgroundColor: "#7D3B3B"
             opacity: enabled ? 1.0 : 0.5
-            text: "Reset"
+            text: qsTr("Reset")
             visible: !!root.selectedController?.mapping?.hasSettings
 
             onPressed: {
@@ -235,7 +235,7 @@ Category {
             activeColor: "#999999"
             backgroundColor: "#3F3F3F"
             opacity: enabled ? 1.0 : 0.5
-            text: "Cancel"
+            text: qsTr("Cancel")
 
             onPressed: {
                 root.selectedController = null;
@@ -246,7 +246,7 @@ Category {
             activeColor: "#999999"
             backgroundColor: root.dirty ? "#3a60be" : "#3F3F3F"
             opacity: enabled ? 1.0 : 0.5
-            text: "Save"
+            text: qsTr("Save")
 
             onPressed: {
                 errorMessage.text = "";

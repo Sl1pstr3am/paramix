@@ -41,6 +41,12 @@ Item {
 
     signal moved(real value)
 
+    // Only properties available in the minimum supported Qt (6.4) may be used
+    // here. Accessible.value/minimumValue/maximumValue/stepSize and the
+    // increase/decrease actions were added in Qt 6.5 and make the whole
+    // component fail to load on Qt 6.4, which is what Linux CI builds against.
+    Accessible.role: Accessible.Slider
+
     function applyInteractiveValue(targetValue, isFinal) {
         dragHandler.value = clamp(snapValue(targetValue, isFinal));
         if (root.live || isFinal) {

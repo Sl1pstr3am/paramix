@@ -23,7 +23,7 @@ Row {
             group: "[EffectRack1_EffectUnit" + (index + 1) + "]"
             height: 20
             key: "group_" + root.channelGroup + "_enable"
-            text: root.showFourUnits ? (index === 0 ? "FX1" : index + 1) : "FX" + (index + 1)
+            text: root.showFourUnits ? (index === 0 ? qsTr("FX1") : index + 1) : qsTr("FX%1").arg(index + 1)
             toggleable: true
             width: root.showFourUnits ? (index === 0 ? 26 : 20) : 26
         }

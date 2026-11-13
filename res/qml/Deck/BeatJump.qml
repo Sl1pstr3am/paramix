@@ -18,7 +18,7 @@ Rectangle {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.top: parent.top
         color: Theme.deckBeatjumpLabelColor
-        text: "Beatjump"
+        text: qsTr("Beatjump")
     }
     Mixxx.ControlProxy {
         id: trackLoadedControl
@@ -41,6 +41,8 @@ Rectangle {
         implicitHeight: 26
         implicitWidth: 50
         key: "beatjump_backward"
+
+        Accessible.name: qsTr("Beatjump backward")
 
         contentItem: Item {
             anchors.fill: parent
@@ -134,6 +136,8 @@ Rectangle {
         implicitWidth: 50
         key: "beatjump_forward"
 
+        Accessible.name: qsTr("Beatjump forward")
+
         contentItem: Item {
             anchors.fill: parent
 
@@ -215,6 +219,8 @@ Rectangle {
 
         implicitHeight: 28
         implicitWidth: 22
+
+        Accessible.name: qsTr("Halve beatjump size")
 
         onPressed: {
             beatjumpSize.step(-1);
@@ -317,6 +323,8 @@ Rectangle {
 
         implicitHeight: 28
         implicitWidth: 22
+
+        Accessible.name: qsTr("Double beatjump size")
 
         onPressed: {
             beatjumpSize.step(1);

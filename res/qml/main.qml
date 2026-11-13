@@ -111,7 +111,7 @@ ApplicationWindow {
             anchors.topMargin: 20
             font.pixelSize: 12
             color: Theme.lightGray3
-            text: "DJ your way"
+            text: qsTr("DJ your way")
             Behavior on opacity {
                 SequentialAnimation {
                     PauseAnimation { duration: 1000 }

@@ -59,14 +59,14 @@ Row {
             Column {
                 Skin.SectionText {
                     height: 26
-                    text: "MIC " + root.unitNumber
+                    text: qsTr("MIC %1").arg(root.unitNumber)
                     width: 52
                 }
                 Skin.ControlButton {
                     activeColor: Theme.pflActiveButtonColor
                     group: root.group
                     key: "pfl"
-                    text: "PFL"
+                    text: qsTr("PFL")
                     toggleable: true
                 }
             }
@@ -84,7 +84,7 @@ Row {
                         activeColor: Theme.deckActiveColor
                         group: root.group
                         key: "talkover"
-                        text: "Talk"
+                        text: qsTr("Talk")
                         toggleable: true
                     }
                     RowLayout {
@@ -106,7 +106,7 @@ Row {
                                 group: "[EffectRack1_EffectUnit" + (index + 1) + "]"
                                 implicitWidth: 28
                                 key: "group_" + root.group + "_enable"
-                                text: "FX" + (index + 1)
+                                text: qsTr("FX%1").arg(index + 1)
                                 toggleable: true
 
                                 onHighlightChanged: root.fxAssignmentChanged(index + 1, highlight)
@@ -126,13 +126,13 @@ Row {
             Skin.SectionText {
                 color: Theme.darkGray3
                 height: 21
-                text: "mic " + root.unitNumber
+                text: qsTr("mic %1").arg(root.unitNumber)
                 width: 80
             }
             Skin.ControlButton {
                 group: root.group
                 key: "talkover"
-                text: "Configure"
+                text: qsTr("Configure")
                 width: 80
             }
         }

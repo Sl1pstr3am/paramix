@@ -93,7 +93,7 @@ Rectangle {
             height: 40
             highlight: playLatchedControl.value > 0 || root.playing
             key: "cue_gotoandplay"
-            text: "Play"
+            text: qsTr("Play")
             width: 40
 
             MouseArea {
@@ -169,28 +169,28 @@ Rectangle {
                 Layout.fillWidth: true
                 group: root.group
                 key: "sync_enabled"
-                text: "Sync"
+                text: qsTr("Sync")
                 toggleable: true
             }
             Skin.ControlButton {
                 Layout.fillWidth: true
                 group: root.group
                 key: "keylock"
-                text: "Key"
+                text: qsTr("Key")
                 toggleable: true
             }
             Skin.ControlButton {
                 Layout.fillWidth: true
                 group: root.group
                 key: "repeat"
-                text: "Loop"
+                text: qsTr("Loop")
                 toggleable: true
             }
             Skin.ControlButton {
                 Layout.fillWidth: true
                 group: root.group
                 key: "pfl"
-                text: "PFL"
+                text: qsTr("PFL")
                 toggleable: true
             }
             Skin.OrientationToggleButton {
@@ -203,7 +203,7 @@ Rectangle {
                 Layout.fillWidth: true
                 group: root.group
                 key: "eject"
-                text: "Eject"
+                text: qsTr("Eject")
             }
         }
         Skin.ControlFader {
@@ -254,7 +254,7 @@ Rectangle {
                     group: "[EffectRack1_EffectUnit" + (index + 1) + "]"
                     implicitHeight: 22
                     key: "group_" + root.group + "_enable"
-                    text: "FX" + (index + 1)
+                    text: qsTr("FX%1").arg(index + 1)
                     toggleable: true
 
                     onHighlightChanged: root.fxAssignmentChanged(index + 1, highlight)

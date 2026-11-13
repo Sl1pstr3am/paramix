@@ -59,14 +59,14 @@ Row {
             Column {
                 Skin.SectionText {
                     height: 26
-                    text: "AUX " + root.unitNumber
+                    text: qsTr("AUX %1").arg(root.unitNumber)
                     width: 52
                 }
                 Skin.ControlButton {
                     activeColor: Theme.pflActiveButtonColor
                     group: root.group
                     key: "pfl"
-                    text: "PFL"
+                    text: qsTr("PFL")
                     toggleable: true
                 }
             }
@@ -96,7 +96,7 @@ Row {
                             activeColor: Theme.deckActiveColor
                             group: root.group
                             key: "main_mix"
-                            text: "Main"
+                            text: qsTr("Main")
                             toggleable: true
                         }
                     }
@@ -119,7 +119,7 @@ Row {
                                 group: "[EffectRack1_EffectUnit" + (index + 1) + "]"
                                 implicitWidth: 28
                                 key: "group_" + root.group + "_enable"
-                                text: "FX" + (index + 1)
+                                text: qsTr("FX%1").arg(index + 1)
                                 toggleable: true
 
                                 onHighlightChanged: root.fxAssignmentChanged(index + 1, highlight)
@@ -139,13 +139,13 @@ Row {
             Skin.SectionText {
                 color: Theme.darkGray3
                 height: 21
-                text: "Aux " + root.unitNumber
+                text: qsTr("Aux %1").arg(root.unitNumber)
                 width: 80
             }
             Skin.ControlButton {
                 group: root.group
                 key: "main_mix"
-                text: "Configure"
+                text: qsTr("Configure")
                 width: 80
             }
         }

@@ -87,7 +87,7 @@ Item {
                 Skin.Button {
                     activeColor: Theme.effectUnitColor
                     height: 26
-                    text: "FX " + root.unitNumber
+                    text: qsTr("FX %1").arg(root.unitNumber)
                     width: 56
 
                     onClicked: presetPopup.open()
@@ -97,7 +97,7 @@ Item {
                     group: root.group
                     height: 26
                     key: "group_[Headphone]_enable"
-                    text: "PFL"
+                    text: qsTr("PFL")
                     toggleable: true
                     width: 42
                 }
@@ -110,7 +110,7 @@ Item {
                     group: root.group
                     height: 30
                     key: "mix_mode"
-                    text: "D/W"
+                    text: qsTr("D/W")
                     toggleable: true
                     width: 36
                 }

@@ -120,7 +120,7 @@ Item {
 
                     activeColor: Theme.white
                     checkable: true
-                    text: "4 Decks"
+                    text: qsTr("4 Decks")
                     visible: root.height > 515
                 }
                 Skin.Button {
@@ -128,7 +128,7 @@ Item {
 
                     activeColor: Theme.white
                     checkable: true
-                    text: "Library"
+                    text: qsTr("Library")
 
                     onCheckedChanged: () => {
                         showMaximizedLibrary.value = this.checked;
@@ -150,21 +150,21 @@ Item {
 
                     activeColor: Theme.white
                     checkable: true
-                    text: "Effects"
+                    text: qsTr("Effects")
                 }
                 Skin.Button {
                     id: showAuxButton
 
                     activeColor: Theme.white
                     checkable: true
-                    text: "Aux"
+                    text: qsTr("Aux")
                 }
                 Skin.Button {
                     id: showSamplersButton
 
                     activeColor: Theme.white
                     checkable: true
-                    text: "Sampler"
+                    text: qsTr("Sampler")
                 }
                 Item {
                     Layout.fillWidth: true
@@ -174,7 +174,7 @@ Item {
 
                     activeColor: Theme.white
                     checkable: true
-                    text: "Edit"
+                    text: qsTr("Edit")
                 }
                 Skin.Button {
                     id: showDevToolsButton
@@ -182,7 +182,7 @@ Item {
                     activeColor: Theme.white
                     checkable: true
                     checked: devToolsWindow.visible
-                    text: "Develop"
+                    text: qsTr("Develop")
 
                     onClicked: {
                         if (devToolsWindow.visible)
@@ -207,6 +207,8 @@ Item {
                     icon.source: "images/gear.svg"
                     icon.width: 16
                     implicitWidth: implicitHeight
+
+                    Accessible.name: qsTr("Preferences")
 
                     onClicked: {
                         if (!settingsPopup.opened) {

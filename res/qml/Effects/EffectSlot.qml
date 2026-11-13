@@ -48,7 +48,7 @@ Item {
             anchors.top: parent.top
             group: root.group
             key: "enabled"
-            text: "ON"
+            text: qsTr("ON")
             toggleable: true
             width: 40
         }
@@ -141,7 +141,7 @@ Item {
                     activeColor: Theme.effectColor
                     group: root.group
                     key: parameter.controlKey
-                    text: "ON"
+                    text: qsTr("ON")
                     toggleable: true
                 }
             }
@@ -156,7 +156,7 @@ Item {
                     group: root.group
                     height: 8
                     key: parameter.controlKey + "_link_inverse"
-                    text: "I"
+                    text: qsTr("I")
                     toggleable: true
                     width: 12
                 }
@@ -171,7 +171,7 @@ Item {
                     Text {
                         anchors.centerIn: parent
                         font.pixelSize: 7
-                        text: "LINK " + Math.round(linkTypeControl.value)
+                        text: qsTr("LINK %1").arg(Math.round(linkTypeControl.value))
                     }
                     TapHandler {
                         onTapped: linkTypeControl.value = (Math.round(linkTypeControl.value) + 1) % 5
