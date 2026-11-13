@@ -130,6 +130,11 @@ by adding your name to the table in §4 in your first pull request.
 - **Why it is safe:** new files only.
 - **Done when:** the workflow is green on a branch and does not run on every push (keep runner cost
   sane).
+- **Status:** claimed by bradley. First workflow is the QML minimum-Qt guard
+  (`.github/workflows/qml-qt-api-guard.yml`, `tools/qml_qt_api_guard.py`,
+  `docs/qml-qt-version-guard.md`), which catches Qt 6.5+ QML API on a Qt 6.4.2 runner in seconds
+  instead of after a full Linux build — the regression W2 hit. A packaging smoke test is deferred
+  until W3 lands; a nightly sanitizer build is still open and needs its own cost decision.
 
 ---
 
@@ -152,7 +157,7 @@ paths.
 | Packaging | `packaging/**`, `res/linux/**` | **free** | W3 |
 | Tests and fixtures | `src/test/**`, `tools/**` (new) | **free** | W4 |
 | Model hosting tools | `tools/**` (new), `docs/**` (new) | **free** | W5 |
-| New workflows | `.github/workflows/*.yml` (new) | **free** | W6 |
+| New workflows | `.github/workflows/*.yml` (new) | **bradley** | W6 — QML minimum-Qt guard |
 
 ---
 

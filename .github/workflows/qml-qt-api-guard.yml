@@ -1,0 +1,60 @@
+# Paramix QML minimum-Qt guard
+#
+# Linux CI builds against Qt 6.4.2 (Ubuntu 24.04, see tools/debian_buildenv.sh)
+# and CMakeLists.txt gates QML on Qt6_VERSION >= 6.4. QML that uses a newer Qt
+# API parses fine in an editor and on newer platforms, then fails the Linux job
+# with "Cannot assign to non-existent property" after a full configure and
+# build. Workstream W2 lost a CI cycle to exactly that; this guard catches it
+# statically in seconds.
+#
+# Triggered only when QML, the guard itself or its documentation changes, plus a
+# weekly sweep, so it adds no job to an ordinary push. Static check only: no Qt
+# installation, no build, no network.
+#
+# See docs/qml-qt-version-guard.md for scope, rule provenance and suppression.
+
+name: QML Qt API guard
+
+on:
+  pull_request:
+    paths:
+      - "res/qml/**"
+      - "res/skins/**"
+      - "res/controllers/**"
+      - "tools/qml_qt_api_guard.py"
+      - "tools/qml_qt_api_guard_rules.json"
+      - "tools/qml_qt_api_guard_selftest.py"
+      - "docs/qml-qt-version-guard.md"
+      - ".github/workflows/qml-qt-api-guard.yml"
+  schedule:
+    # Mondays 05:23 UTC. Catches drift the path filter cannot see, such as a new
+    # QML directory or a minimum-Qt bump landing without the table.
+    - cron: "23 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qml-qt-api-guard-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  guard:
+    name: QML minimum-Qt guard
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Self-test the guard
+        run: python tools/qml_qt_api_guard_selftest.py
+
+      - name: Check QML against the minimum supported Qt
+        run: python tools/qml_qt_api_guard.py --format github
