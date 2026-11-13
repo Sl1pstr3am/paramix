@@ -43,10 +43,24 @@ find_library(
   PATH_SUFFIXES lib lib64
 )
 
+if(WIN32)
+  find_file(
+    onnxruntime_RUNTIME
+    NAMES onnxruntime.dll
+    HINTS ${_onnxruntime_HINTS}
+    PATH_SUFFIXES lib bin .
+  )
+  mark_as_advanced(onnxruntime_RUNTIME)
+endif()
+
 include(FindPackageHandleStandardArgs)
+set(_onnxruntime_REQUIRED_VARS onnxruntime_LIBRARY onnxruntime_INCLUDE_DIR)
+if(WIN32)
+  list(APPEND _onnxruntime_REQUIRED_VARS onnxruntime_RUNTIME)
+endif()
 find_package_handle_standard_args(
   onnxruntime
-  REQUIRED_VARS onnxruntime_LIBRARY onnxruntime_INCLUDE_DIR
+  REQUIRED_VARS ${_onnxruntime_REQUIRED_VARS}
 )
 
 if(onnxruntime_FOUND AND NOT TARGET onnxruntime::onnxruntime)

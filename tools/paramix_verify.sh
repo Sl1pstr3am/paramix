@@ -244,6 +244,7 @@ check_clang_format() {
   while IFS= read -r name; do
     [[ -n "$name" ]] || continue
     case "$name" in
+      lib/*) continue ;;
       *.cpp|*.h|*.hpp|*.cc) files+=("$name") ;;
     esac
   done <<< "$changed"
