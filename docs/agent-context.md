@@ -318,6 +318,18 @@ Shared single-owner files (route through A0): `CMakeLists.txt`, `res/schema.xml`
   additive under the existing version strings; Rekordbox `beat_number` is imported and discarded;
   no inference runtime or bundled-model precedent exists. Recommendation: DSP baseline first, ML
   downbeats as a separate later decision.
+- **2026-11-12** — **Program board created** at
+  <https://github.com/users/christianstuart/projects/2>, linked to `christianstuart/paramix` so it
+  shows in the repository's Projects tab. 27 **draft cards** (no issues, so the issue tracker stays
+  clean) with four fields: Status (including a new "In review" option), Workstream, Area and Phase.
+  Content comes from `docs/parallel-work.md` (W1–W6) and the plan (O1–O4, the 15 deliverables, the
+  open decisions). The two cards that contradicted the ADRs were corrected at creation: the grid
+  card is the ADR-003 additive `BarInfo` work (no `BeatGrid-3.0`, no dual-write, no schema
+  revision), and the cache card carries ADR-002's decisions. Bradley's board under `kalewaf` cannot
+  be linked to this repository because a user-owned project can only link to a repository with the
+  same owner, hence the new board under `christianstuart`. `gh` was re-logged in as
+  `christianstuart` with the `project` scope; the stored credential still named `Sl1pstr3am` after
+  the rename and rejected the new token.
 - **2026-11-12** — **Plan reconciled with ADR-003.** `docs/paramix-stem-beatgrid-ui-plan.md` still
   recommended `BeatGrid-3.0`, dual-writing a legacy blob and adding `beats_legacy` /
   `beats_confidence` columns, which ADR-003 rejects because a new version string makes
