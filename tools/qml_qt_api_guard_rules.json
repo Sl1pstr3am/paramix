@@ -1,0 +1,61 @@
+{
+  "_comment": "Rule data for tools/qml_qt_api_guard.py. Every entry must come from the Qt documentation for the version named in 'sources' - do not add a member or version from memory. The guard fails closed: a member that is not listed under 'accessible' is rejected, so future Qt additions are caught without being known here.",
+  "minimum_qt": "6.4",
+  "sources": {
+    "minimum_qt": "CMakeLists.txt gates QML on Qt6_VERSION >= 6.4 ('We need Qt 6.4 for ComponentBehavior: Bound'); Linux CI is Ubuntu 24.04 with Qt 6.4.2 (tools/debian_buildenv.sh).",
+    "accessible_qt64": "https://doc.qt.io/qt-6.4/qml-qtquick-accessible.html - properties and signals of the Accessible attached type in Qt 6.4.3.",
+    "accessible_later": "https://doc.qt.io/qt-6/qml-qtquick-accessible.html - later members carry a 'This property was introduced in Qt X.Y' note, or are absent from the 6.4 page.",
+    "incident": "docs/qml-i18n-a11y-notes.md section 1.2 - Qt 6.5-only Accessible properties failed to load on the Qt 6.4.2 Linux job."
+  },
+  "accessible": {
+    "properties": [
+      "checkStateMixed",
+      "checkable",
+      "checked",
+      "defaultButton",
+      "description",
+      "editable",
+      "focusable",
+      "focused",
+      "ignored",
+      "multiLine",
+      "name",
+      "passwordEdit",
+      "pressed",
+      "readOnly",
+      "role",
+      "searchEdit",
+      "selectable",
+      "selectableText",
+      "selected"
+    ],
+    "signals": [
+      "decreaseAction",
+      "increaseAction",
+      "nextPageAction",
+      "pressAction",
+      "previousPageAction",
+      "scrollDownAction",
+      "scrollLeftAction",
+      "scrollRightAction",
+      "scrollUpAction",
+      "toggleAction"
+    ],
+    "since": {
+      "value": "6.5",
+      "minimumValue": "6.5",
+      "maximumValue": "6.5",
+      "stepSize": "6.5",
+      "announce": "6.8",
+      "labelFor": "6.10",
+      "labelledBy": "6.10",
+      "expandable": "6.12",
+      "expanded": "6.12"
+    }
+  },
+  "imports": {
+    "enabled": true,
+    "note": "A versioned import such as 'import QtQuick 6.5' requires Qt >= 6.5 and fails the guard. Qt 5 style imports such as 'import QtQuick 2.15' are accepted by Qt 6 and never fail."
+  },
+  "extra_rules": []
+}
