@@ -1,10 +1,12 @@
 #include "stems/demucsonnxseparator.h"
 
+#include <algorithm>
 #include <cstdint>
 #include <demucs/separator.hpp>
 #include <exception>
 #include <stdexcept>
 #include <string>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -37,7 +39,15 @@ class DemucsOnnxSeparator::Impl final {
         if (!(config.overlap >= 0.0f && config.overlap < 1.0f)) {
             throw std::runtime_error("overlap must be in [0, 1)");
         }
-        options.session.threads = config.threads;
+        // Keep the DSP pool off every core the engine and GUI need. ADR-001
+        // bounds the workers at min(4, cores / 2); zero means this default.
+        const int hardwareThreads =
+                static_cast<int>(std::thread::hardware_concurrency());
+        const int boundedThreads =
+                std::max(1, std::min(4, hardwareThreads / 2));
+        options.session.threads =
+                config.threads > 0 ? config.threads : boundedThreads;
+        options.dsp_threads = boundedThreads;
         options.batch = config.batch;
         options.overlap = config.overlap;
         m_separator = std::make_unique<demucs::Separator>(

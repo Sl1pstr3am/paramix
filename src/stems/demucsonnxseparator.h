@@ -15,7 +15,8 @@ struct DemucsOnnxConfig {
     std::string modelPath;
     /// auto, cpu, cuda, tensorrt, directml, coreml or rocm.
     std::string device = "auto";
-    /// ONNX Runtime intra-op threads; zero uses the runtime default.
+    /// ONNX Runtime intra-op threads; zero uses a bounded default of
+    /// min(4, max(1, hardware_concurrency() / 2)).
     int threads = 0;
     /// Chunks per inference call; zero picks 1 on CPU and 4 on an accelerator.
     int batch = 0;
