@@ -106,6 +106,10 @@ bool StemSeparation::separate(StemSeparatorBackend* pBackend,
     SampleBuffer inputWindow(windowFrames * 2);
     SampleBuffer outputWindow(windowSamples);
     SampleBuffer accumulator(windowSamples);
+    // SampleBuffer leaves its storage uninitialized. The first window has a
+    // zero shift, so shiftAndZero() below is a no-op and would otherwise
+    // accumulate the first window onto heap garbage.
+    accumulator.clear();
     std::vector<CSAMPLE> weights(static_cast<std::size_t>(windowFrames), kZero);
 
     // Fill the first window. Everything past the end of the track is zero, so

@@ -369,6 +369,9 @@ TEST_F(StemSeparationTest, StreamsWithoutHoldingTheWholeTrack) {
     // Output is handed over one hop at a time, never a whole track.
     EXPECT_LE(largestChunk, kWindowFrames);
     EXPECT_EQ(buffered, streamed);
+    // Check the streamed output against the input too, so a shared bug in
+    // both paths cannot hide behind the comparison.
+    expectReconstructed(input, streamed, frameCount);
 }
 
 TEST_F(StemSeparationTest, StreamingAbortsOnShortRead) {
