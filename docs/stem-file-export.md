@@ -107,17 +107,15 @@ is a separate, user-facing artifact.
   stereo file.
 - Settings -> Stems binds the format, the AAC bitrate, the model path and the
   default stem files folder.
+- The library track table has a read-only **Stems** column at the end showing
+  `Queued`, `Separating`, `Ready`, `Missing files` or `Failed`. It is fed by
+  `StemService::statusForTrack()` and refreshed on the service's status signal;
+  it is not yet sortable and external library views do not show it.
 
 ## Not yet wired
 
-- Direct playback of an exported set (the 8-channel cache is still the playback
+- Direct playback of an exported set (the 8-channel cache is the playback
   path).
-- The cache analyzer trigger. The queue runs on a low-priority thread, persists
-  jobs across restarts, resumes them at startup, and can pause, resume and
-  cancel, but ADR-002's 8-channel cache does not exist yet, so there is nothing
-  for `AnalyzerWaveform` to analyze. The hook belongs with the cache writer.
-- A stems status column in the library. `StemService::trackStatusChanged` and
-  `statusForTrack()` expose the state, but no model column displays it yet.
 - Cache invalidation and generation directories. The cache is keyed only by
   track id today; a changed source file or a new model overwrites it on the
   next run rather than taking a new generation.
