@@ -583,7 +583,8 @@ void CoreServices::initialize() {
             m_pPlayerManager.get(),
             m_pRecordingManager.get());
 
-    mixxx::stems::StemService::createInstance(pConfig, m_pDbConnectionPool);
+    mixxx::stems::StemService::createInstance(pConfig, m_pDbConnectionPool)
+            ->restoreQueuedJobs(m_pTrackCollectionManager.get());
 
     OverviewCache* pOverviewCache = OverviewCache::createInstance(pConfig, m_pDbConnectionPool);
     connect(&(m_pTrackCollectionManager->internalCollection()->getTrackDAO()),

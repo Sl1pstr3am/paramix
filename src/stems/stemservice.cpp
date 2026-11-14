@@ -9,7 +9,9 @@
 #include <utility>
 #include <vector>
 
+#include "library/dao/stemqueuedao.h"
 #include "library/dao/stemsetdao.h"
+#include "library/trackcollectionmanager.h"
 #include "moc_stemservice.cpp"
 #include "preferences/configobject.h"
 #include "sources/audiosource.h"
@@ -60,6 +62,8 @@ StemService::~StemService() {
         QMutexLocker locker(&m_mutex);
         m_stopRequested = true;
         m_jobs.clear();
+        // A running job polls this and unwinds at the next output block.
+        m_cancelRequested = true;
         m_waitCondition.wakeAll();
     }
     wait();
@@ -77,6 +81,14 @@ bool StemService::queueExport(const StemExportRequest& request) {
         return false;
     }
     const TrackId trackId = request.track->getId();
+    {
+        QMutexLocker locker(&m_mutex);
+        for (const auto& job : std::as_const(m_jobs)) {
+            if (job.trackId == trackId) {
+                return false;
+            }
+        }
+    }
     m_cancelRequested = false;
     const StemExportSettings settings = readStemExportSettings(m_pConfig);
     const QString outputDirectory = request.outputDirectory.trimmed().isEmpty()
@@ -86,6 +98,19 @@ bool StemService::queueExport(const StemExportRequest& request) {
                     ? defaultSetName(request.track)
                     : request.setName);
     const QString modelPathValue = modelPath();
+    StemQueueRecord queued;
+    queued.trackId = trackId;
+    queued.outputDirectory = outputDirectory;
+    queued.setName = setName;
+    queued.format = stemFileFormatName(settings.format);
+    queued.aacBitrateKbps = settings.format == StemFileFormat::Aac
+            ? settings.aacBitrateKbps
+            : 0;
+    // Live outside the lock: it may open a database connection on this thread.
+    const QSqlDatabase database = mixxx::DbConnectionPooled(m_pDbConnectionPool);
+    if (database.isOpen()) {
+        StemQueueDao(database).upsert(queued);
+    }
     {
         QMutexLocker locker(&m_mutex);
         for (const auto& job : std::as_const(m_jobs)) {
@@ -132,12 +157,66 @@ void StemService::cancelAll() {
     while (!canceled.isEmpty()) {
         setStatus(canceled.dequeue().trackId, Status::NotSeparated, 0);
     }
+    const QSqlDatabase database = mixxx::DbConnectionPooled(m_pDbConnectionPool);
+    if (database.isOpen()) {
+        StemQueueDao(database).clear();
+    }
     m_waitCondition.wakeAll();
 }
 
+void StemService::restoreQueuedJobs(TrackCollectionManager* pTrackCollectionManager) {
+    if (pTrackCollectionManager == nullptr) {
+        return;
+    }
+    const QSqlDatabase database = mixxx::DbConnectionPooled(m_pDbConnectionPool);
+    if (!database.isOpen()) {
+        return;
+    }
+    StemQueueDao queueDao(database);
+    const QList<StemQueueRecord> records = queueDao.loadAll();
+    for (const auto& record : records) {
+        TrackPointer pTrack = pTrackCollectionManager->getTrackById(record.trackId);
+        if (!pTrack) {
+            queueDao.remove(record.trackId);
+            continue;
+        }
+        StemExportRequest request;
+        request.track = pTrack;
+        request.outputDirectory = record.outputDirectory;
+        request.setName = record.setName;
+        queueExport(request);
+    }
+}
+
 StemService::Status StemService::statusForTrack(TrackId trackId) const {
+    {
+        QMutexLocker locker(&m_mutex);
+        const auto it = m_statuses.constFind(trackId);
+        if (it != m_statuses.constEnd() && it.value() != Status::Ready) {
+            return it.value();
+        }
+    }
+    // No live status: an exported set may still be on disk from an earlier
+    // session. The row is a rebuildable index, so this is a cheap lookup.
+    const QSqlDatabase database = mixxx::DbConnectionPooled(m_pDbConnectionPool);
+    if (!database.isOpen()) {
+        return Status::NotSeparated;
+    }
+    const QList<StemSetRecord> records = StemSetDao(database).loadForTrack(trackId);
+    if (records.isEmpty()) {
+        return Status::NotSeparated;
+    }
+    for (const auto& record : records) {
+        if (QFileInfo(QDir(record.directory).filePath(record.setName)).exists()) {
+            return Status::Ready;
+        }
+    }
+    return Status::MissingStemFile;
+}
+
+QString StemService::lastMessageForTrack(TrackId trackId) const {
     QMutexLocker locker(&m_mutex);
-    return m_statuses.value(trackId, Status::NotSeparated);
+    return m_messages.value(trackId);
 }
 
 void StemService::setStatus(
@@ -149,6 +228,7 @@ void StemService::setStatus(
         } else {
             m_statuses.insert(trackId, status);
         }
+        m_messages.insert(trackId, message);
     }
     emit trackStatusChanged(trackId, status, progress, message);
 }
@@ -172,6 +252,7 @@ void StemService::run() {
     mixxx::DbConnectionPooler connectionPooler(m_pDbConnectionPool);
     const QSqlDatabase daoConnection = mixxx::DbConnectionPooled(m_pDbConnectionPool);
     StemSetDao dao(daoConnection);
+    StemQueueDao queueDao(daoConnection);
 
     std::unique_ptr<DemucsOnnxSeparator> pSeparator;
     QString loadedModelPath;
@@ -189,6 +270,9 @@ void StemService::run() {
             job = m_jobs.dequeue();
         }
         processJob(job, &pSeparator, &loadedModelPath, dao);
+        // The job is finished either way; only a crash leaves the row for the
+        // next start to resume.
+        queueDao.remove(job.trackId);
     }
 }
 

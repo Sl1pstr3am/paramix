@@ -35,6 +35,8 @@ smaller and faster, at the cost of quality.
 [Stems]
 FileFormat=flac      ; flac | alac | aac
 AacBitrate=256       ; kbps, clamped to 32..512
+ModelPath=           ; local ONNX graph or bag manifest
+OutputDirectory=     ; empty uses <settings>/Stems
 ```
 
 These are read by `mixxx::stems::readStemExportSettings()` and written by
@@ -91,20 +93,28 @@ is a separate, user-facing artifact.
   renamed into place.
 - The library track context menu has "Save Stems As...", which asks for a
   folder and a set name (the default is made unique) and hands the job to
-  `StemService`.
+  `StemService`. Selecting several tracks queues one set per track and derives
+  unique names from the titles.
 - `StemService` separates on a low-priority background thread, applies the
   shared scalar limiter, then calls `writeStemSet()` with the Settings -> Stems
-  format. It reports progress and failure per track.
+  format. It reports progress and failure per track, persists the queue in
+  schema revision 42 (`stem_queue`) and resumes pending jobs at startup.
 - Settings -> Stems binds the format, the AAC bitrate and the model path.
 
 ## Not yet wired
 
 - Direct playback of an exported set (the 8-channel cache is still the playback
   path).
-- Batch export, persistent queue resume, pause and cancel UI. The service
-  already pauses, cancels and rejects a track that is queued twice, but the
-  queue is not yet restored after a restart.
+- The cache analyzer trigger. The queue runs on a low-priority thread, persists
+  jobs across restarts, resumes them at startup, and can pause, resume and
+  cancel, but ADR-002's 8-channel cache does not exist yet, so there is nothing
+  for `AnalyzerWaveform` to analyze. The hook belongs with the cache writer.
+- A queue UI. Statuses are exposed through `StemService::trackStatusChanged`
+  and `statusForTrack()`; no library column or badge uses them yet.
 - Resampling: separation requires 44.1 kHz input for now.
+- The service holds the decoded stereo track and the eight-channel output in
+  memory, about 1 GB for a ten-minute track. The cache/writer path should stream
+  before very long tracks are supported.
 
 ## Licensing
 

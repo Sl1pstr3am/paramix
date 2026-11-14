@@ -75,7 +75,7 @@ Workstreams W1 (#3), W2 (#4), W4 (#6), W5 (#5), W6 (#15), and the `rbxport` beat
 
 The remaining project backlog on the [Program Board](https://github.com/users/christianstuart/projects/2) is consolidated into **8 independent tasks** so multiple agents can work in parallel without file collisions:
 
-**Current state (2026-11-13):** Stems 1 and 2 are in review (#17, #18, #19); the native stem export is in review (#20). All five CI jobs are green on each. Stems 4 (the background queue) is the next implementation task. The program board carries the same status.
+**Current state (2026-11-13):** The implementation stack (#17-#20) is merged to `main`. Stems 3 integration (schema 41/42, Settings -> Stems, the context action and `StemService` export) and the Stems 4 background queue are implemented on `bradley/stems3-integration` and `bradley/stems4-queue`. The remaining stem work is the ADR-002 cache and its playback path. The program board carries the same status.
 
 ### 1. Beatgrid — Rekordbox-style phrase labeling & visualization option
 - **Scope:** Extend `src/proto/beats.proto` additively (`BarInfo` + phrase segments under existing version strings; fix `Beats::operator==`), preserve `GridPhase::phraseStarts` in `analyzerrbxportbeats.cpp` and classify segments into Rekordbox-style phrase labels (`Intro`, `Up`, `Down`, `Verse`, `Bridge`, `Chorus`, `Outro`), import Rekordbox `PSSI` (`SECTION_TAGS_SONG_STRUCTURE`) in `rekordboxfeature.cpp`, and add a user preference to toggle between **Standard Bar** lines and **Rekordbox Phrase Style** (colored, labeled phrase blocks/strip).
@@ -94,15 +94,16 @@ The remaining project backlog on the [Program Board](https://github.com/users/ch
 - **Files:** `lib/demucs-onnx/`, `src/stems/demucsonnxseparator.*`, `src/stems/stemseparatorfactory.*`, `cmake/modules/Findonnxruntime.cmake`, `.github/workflows/stems-onnx.yml`, `docs/stems-onnx.md`.
 - **Remaining:** wire the shared limiter and resampling, add Windows/macOS ORT CI, and the model manager/ADR-005.
 
-### 4. Stems 3 - Native stem set export (FLAC/ALAC or AAC) (implemented, PR #20)
-- **Status:** In review. Traktor `.stem.mp4` writing is dropped; the reader remains. A set is four stereo files plus `stem-set.json`.
+### 4. Stems 3 - Native stem set export (FLAC/ALAC or AAC) (merged + integrated)
+- **Status:** The writer is merged (#20). Integration adds schema revisions 41 (`stem_set`) and 42 (`stem_queue`), `StemSetDao`/`StemQueueDao`, Settings -> Stems, and "Save Stems As..." in the track context menu.
 - **Scope:** FLAC (default, libsndfile 24-bit), ALAC (libsndfile CAF/ALAC 24-bit) or AAC (FDK AAC ADTS, default 256 kbps). `[Stems],FileFormat` and `[Stems],AacBitrate`; atomic temp-directory writes; existing-set refusal; sidecar metadata.
-- **Files:** `src/stems/stemfileformat.*`, `src/stems/stemfilewriter.*`, `src/test/stemfilewritertest.cpp`, `docs/stem-file-export.md`.
-- **Remaining:** schema rev 41 link, Settings/UI, service integration and direct playback of exported sets.
+- **Files:** `src/stems/stemfileformat.*`, `src/stems/stemfilewriter.*`, `src/library/dao/stemsetdao.*`, `src/library/dao/stemqueuedao.*`, `src/preferences/dialog/dlgprefstems*`, `src/test/stemfilewritertest.cpp`, `src/test/stemsetdaotest.cpp`, `docs/stem-file-export.md`.
+- **Remaining:** direct playback of an exported set.
 
 ### 5. Stems 4 — Background stem separation queue & worker service (`StemService`)
-- **Scope:** Persistent low-priority job queue owned by `CoreServices` supporting single-track and batch separation, pause/cancel/resume, free-space preflight, per-track progress signals (`NotSeparated`, `Queued`, `Separating%`, `Ready`, `MissingStemFile`, `Failed`), and automatic 8-channel `AnalyzerWaveform` trigger upon completion.
-- **Files:** `src/stems/`, `src/coreservices.*`, `src/analyzer/`.
+- **Status:** Implemented. `StemService` is owned by `CoreServices`, runs at low priority, persists the queue in `stem_queue`, restores it at startup, and supports pause, resume and cancel.
+- **Scope:** single-track and batch separation, per-track progress signals (`NotSeparated`, `Queued`, `Separating%`, `Ready`, `MissingStemFile`, `Failed`), free-space preflight, the shared limiter and `writeStemSet()`. The automatic 8-channel `AnalyzerWaveform` trigger waits for the ADR-002 cache, because there is no cache file to analyze yet.
+- **Files:** `src/stems/stemservice.*`, `src/coreservices.*`, `src/library/dao/stemqueuedao.*`.
 
 ### 6. Waveform — 4-stem tinted composite mode, labels & 60 fps batching
 - **Scope:** Add a selectable **tinted composite** mode alongside stacked lanes in `allshader::WaveformRendererStem` and its QML wrapper, keep muted stems visible at dimmed opacity, add per-stem labels with the color-blind-safe palette, and fix the `kPixelPerStrip = 2` scene-graph batching to hold ≤ 8 ms CPU/frame at 60 fps (4 decks @ 1080p).

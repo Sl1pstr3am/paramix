@@ -16,6 +16,7 @@
 #include "util/singleton.h"
 
 class StemSetDao;
+class TrackCollectionManager;
 
 namespace mixxx::stems {
 
@@ -56,6 +57,10 @@ class StemService : public QThread, public Singleton<StemService> {
     /// Appends a job to the queue and starts the worker if needed. Thread-safe.
     bool queueExport(const StemExportRequest& request);
 
+    /// Re-queues jobs that were still pending when the app exited. Must be
+    /// called on the main thread, because it resolves tracks by id.
+    void restoreQueuedJobs(TrackCollectionManager* pTrackCollectionManager);
+
     /// Stops dequeuing new jobs. A running job pauses at its next block.
     void pause();
     void resume();
@@ -68,6 +73,9 @@ class StemService : public QThread, public Singleton<StemService> {
     /// Last known status of a track. `NotSeparated` when the service has never
     /// seen it.
     Status statusForTrack(TrackId trackId) const;
+
+    /// Message attached to the last status change, if any.
+    QString lastMessageForTrack(TrackId trackId) const;
 
   signals:
     /// `progress` is a percentage in [0, 100].
@@ -111,6 +119,7 @@ class StemService : public QThread, public Singleton<StemService> {
     QWaitCondition m_waitCondition;
     QQueue<Job> m_jobs;
     QMap<TrackId, Status> m_statuses;
+    QMap<TrackId, QString> m_messages;
     bool m_stopRequested = false;
     std::atomic<bool> m_paused{false};
     std::atomic<bool> m_cancelRequested{false};
