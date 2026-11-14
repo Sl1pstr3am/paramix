@@ -88,6 +88,10 @@ class StemService : public QThread, public Singleton<StemService> {
             int progress,
             const QString& message);
 
+    /// The 8-channel playback cache for a track is ready, so waveform analysis
+    /// can now produce the per-stem data.
+    void stemsReady(TrackId trackId);
+
   protected:
     void run() override;
 

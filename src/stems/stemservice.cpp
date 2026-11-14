@@ -17,6 +17,7 @@
 #include "sources/audiosource.h"
 #include "sources/soundsourceproxy.h"
 #include "stems/demucslimiter.h"
+#include "stems/stemcache.h"
 #include "stems/stemfilewriter.h"
 #include "stems/stemseparatorfactory.h"
 #include "track/track.h"
@@ -207,6 +208,7 @@ void StemService::removeStems(TrackId trackId) {
         }
     }
     StemSetDao::deleteForTracks(database, QList<TrackId>{trackId});
+    StemCache::removeCache(trackId);
     setStatus(trackId, Status::NotSeparated, 0, QStringLiteral("Stems removed."));
 }
 
@@ -515,6 +517,20 @@ void StemService::processJob(Job& job,
     if (!writeStemSet(outputDirectory, info, separated.data(), &error)) {
         setStatus(trackId, Status::Failed, 0, error);
         return;
+    }
+
+    // The export is the user-facing artifact; the 8-channel cache is what the
+    // decks and the waveform renderer consume.
+    QString cacheError;
+    if (!StemCache::writeCache(trackId,
+                separated.data(),
+                frames,
+                sampleRate,
+                &cacheError)) {
+        kLogger.warning() << "Stem export written but cache failed for track"
+                          << trackId << cacheError;
+    } else {
+        emit stemsReady(trackId);
     }
 
     StemSetRecord record;

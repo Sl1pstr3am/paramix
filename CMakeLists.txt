@@ -1662,6 +1662,7 @@ add_library(
   src/stems/demucslimiter.cpp
   src/stems/demucsnormalization.cpp
   src/stems/demucsstft.cpp
+  src/stems/stemcache.cpp
   src/stems/stemfileformat.cpp
   src/stems/stemfilewriter.cpp
   src/stems/stemseparation.cpp
@@ -3034,6 +3035,7 @@ if(BUILD_TESTING)
     src/test/soundproxy_test.cpp
     src/test/stemfilewritertest.cpp
     src/test/stemflactest.cpp
+    src/test/stemcachetest.cpp
     src/test/stemsetdaotest.cpp
     src/test/soundsourceproviderregistrytest.cpp
     src/test/sqliteliketest.cpp

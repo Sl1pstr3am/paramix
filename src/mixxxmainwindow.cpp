@@ -4,11 +4,11 @@
 #include <QCloseEvent>
 #include <QDebug>
 #include <QFileDialog>
+#include <QHBoxLayout>
 #include <QLabel>
 #include <QOpenGLContext>
 #include <QProgressBar>
 #include <QPushButton>
-#include <QStatusBar>
 #include <QTimer>
 #include <QUrl>
 
@@ -128,6 +128,7 @@ MixxxMainWindow::MixxxMainWindow(std::shared_ptr<mixxx::CoreServices> pCoreServi
     m_pLaunchImage = m_pSkinLoader->loadLaunchImage(this);
     m_pCentralWidget = (QWidget*)m_pLaunchImage;
     setCentralWidget(m_pCentralWidget);
+    setupStemStatusBar();
 
     show();
 
@@ -176,6 +177,10 @@ void MixxxMainWindow::initializeQOpenGL() {
 
 void MixxxMainWindow::initialize() {
     m_pCoreServices->getControlIndicatorTimer()->setLegacyVsyncEnabled(true);
+
+    // Create the status bar before the skin supplies the central widget, so
+    // QMainWindow reserves its height instead of pushing it off-screen.
+    setupStemStatusBar();
 
     UserSettingsPointer pConfig = m_pCoreServices->getSettings();
 
@@ -393,6 +398,7 @@ void MixxxMainWindow::initialize() {
     // million different variables the first waveform may be horribly
     // corrupted. See bug 521509 -- bkgood ?? -- vrince
     setCentralWidget(m_pCentralWidget);
+    updateStemStatusBarGeometry();
 
 #ifndef __APPLE__
     // Ask for permission to auto-hide the menu bar if applicable.
@@ -439,8 +445,6 @@ void MixxxMainWindow::initialize() {
             this,
             &MixxxMainWindow::slotUpdateWindowTitle);
 
-    setupStemStatusBar();
-
     // Start Auto DJ if the cmdline arg is passed.
     if (CmdlineArgs::Instance().getStartAutoDJ()) {
         qDebug("Enabling Auto DJ from CLI flag.");
@@ -456,54 +460,57 @@ void MixxxMainWindow::initialize() {
 
 void MixxxMainWindow::setupStemStatusBar() {
     auto* pStemService = mixxx::stems::StemService::instance();
-    if (pStemService == nullptr) {
-        return;
+
+    if (m_pStemStatusBar == nullptr) {
+        m_pStemStatusBar = new QWidget(this);
+        m_pStemStatusBar->setObjectName(QStringLiteral("StemStatusBar"));
+        m_pStemStatusBar->setAttribute(Qt::WA_StyledBackground, true);
+        m_pStemStatusBar->setStyleSheet(
+                QStringLiteral(
+                        "QWidget#StemStatusBar { background-color: #1e1e1e; "
+                        "border-top: 1px solid #3a3a3a; } "
+                        "QLabel { color: white; } "
+                        "QProgressBar { border: 1px solid #3a3a3a; border-radius: 2px; "
+                        "background-color: transparent; text-align: center; "
+                        "color: white; max-height: 12px; } "
+                        "QProgressBar::chunk { background-color: #4a90d9; } "
+                        "QPushButton { border: none; padding: 2px 8px; color: white; } "
+                        "QPushButton:hover { background-color: #3a3a3a; }"));
+
+        auto* pLayout = new QHBoxLayout(m_pStemStatusBar);
+        pLayout->setContentsMargins(6, 2, 6, 2);
+        pLayout->setSpacing(8);
+        m_pStemStatusLabel = new QLabel(tr("Stems"), m_pStemStatusBar);
+        m_pStemProgress = new QProgressBar(m_pStemStatusBar);
+        m_pStemProgress->setRange(0, 100);
+        m_pStemProgress->setTextVisible(false);
+        m_pStemProgress->setFixedWidth(140);
+        m_pStemCancelButton = new QPushButton(tr("Cancel"), m_pStemStatusBar);
+        m_pStemCancelButton->setFlat(true);
+        m_pStemCancelButton->setCursor(Qt::PointingHandCursor);
+        pLayout->addWidget(m_pStemStatusLabel, 1);
+        pLayout->addWidget(m_pStemProgress);
+        pLayout->addWidget(m_pStemCancelButton);
+
+        m_pStemStatusTimer = new QTimer(this);
+        m_pStemStatusTimer->setSingleShot(true);
+
+        m_pStemProgress->hide();
+        m_pStemCancelButton->hide();
+        updateStemStatusBarGeometry();
+        m_pStemStatusBar->show();
+
+        connect(m_pStemStatusTimer, &QTimer::timeout, this, [this] {
+            m_pStemStatusLabel->setText(tr("Stems"));
+            m_pStemProgress->hide();
+            m_pStemCancelButton->hide();
+        });
     }
 
-    m_pStemStatusBar = statusBar();
-    m_pStemStatusBar->setSizeGripEnabled(false);
-    m_pStemStatusBar->setAutoFillBackground(true);
-
-    const QColor windowColor = palette().color(QPalette::Window);
-    const QColor textColor = palette().color(QPalette::WindowText);
-    const QColor borderColor = windowColor.lighter(140);
-    const QColor highlightColor = palette().color(QPalette::Highlight);
-    m_pStemStatusBar->setStyleSheet(
-            QStringLiteral(
-                    "QStatusBar { background-color: %1; color: %2; "
-                    "border-top: 1px solid %3; } "
-                    "QStatusBar::item { border: none; } "
-                    "QProgressBar { border: 1px solid %3; border-radius: 2px; "
-                    "background-color: transparent; text-align: center; "
-                    "color: %2; max-height: 12px; } "
-                    "QProgressBar::chunk { background-color: %4; } "
-                    "QPushButton { border: none; padding: 2px 8px; color: %2; } "
-                    "QPushButton:hover { background-color: %3; }")
-                    .arg(windowColor.name(),
-                            textColor.name(),
-                            borderColor.name(),
-                            highlightColor.name()));
-
-    m_pStemStatusLabel = new QLabel(m_pStemStatusBar);
-    m_pStemStatusLabel->setContentsMargins(6, 0, 6, 0);
-    // Always white: the status bar sits on the dark window background regardless
-    // of the skin's WindowText color.
-    m_pStemStatusLabel->setStyleSheet(QStringLiteral("color: white;"));
-    m_pStemProgress = new QProgressBar(m_pStemStatusBar);
-    m_pStemProgress->setRange(0, 100);
-    m_pStemProgress->setTextVisible(false);
-    m_pStemProgress->setFixedWidth(140);
-    m_pStemCancelButton = new QPushButton(tr("Cancel"), m_pStemStatusBar);
-    m_pStemCancelButton->setFlat(true);
-    m_pStemCancelButton->setCursor(Qt::PointingHandCursor);
-
-    m_pStemStatusTimer = new QTimer(this);
-    m_pStemStatusTimer->setSingleShot(true);
-
-    m_pStemStatusBar->addWidget(m_pStemStatusLabel, 1);
-    m_pStemStatusBar->addPermanentWidget(m_pStemProgress);
-    m_pStemStatusBar->addPermanentWidget(m_pStemCancelButton);
-    m_pStemStatusBar->hide();
+    if (m_stemStatusConnected || pStemService == nullptr) {
+        return;
+    }
+    m_stemStatusConnected = true;
 
     connect(pStemService,
             &mixxx::stems::StemService::trackStatusChanged,
@@ -520,7 +527,6 @@ void MixxxMainWindow::setupStemStatusBar() {
                     m_pStemProgress->setValue(progress);
                     m_pStemProgress->show();
                     m_pStemCancelButton->show();
-                    m_pStemStatusBar->show();
                     return;
                 }
 
@@ -535,17 +541,34 @@ void MixxxMainWindow::setupStemStatusBar() {
                 }
                 m_pStemProgress->hide();
                 m_pStemCancelButton->hide();
-                m_pStemStatusBar->show();
                 m_pStemStatusTimer->start(8000);
             });
-    connect(m_pStemStatusTimer,
-            &QTimer::timeout,
-            m_pStemStatusBar,
-            &QStatusBar::hide);
     connect(m_pStemCancelButton,
             &QPushButton::clicked,
             pStemService,
             &mixxx::stems::StemService::cancelAll);
+}
+
+void MixxxMainWindow::updateStemStatusBarGeometry() {
+    if (m_pStemStatusBar == nullptr) {
+        return;
+    }
+    QWidget* pCentralWidget = centralWidget();
+    if (pCentralWidget == nullptr) {
+        return;
+    }
+    constexpr int kStemStatusBarHeight = 26;
+    const QRect centralGeometry = pCentralWidget->geometry();
+    m_pStemStatusBar->setGeometry(centralGeometry.left(),
+            centralGeometry.bottom() - kStemStatusBarHeight + 1,
+            centralGeometry.width(),
+            kStemStatusBarHeight);
+    m_pStemStatusBar->raise();
+}
+
+void MixxxMainWindow::resizeEvent(QResizeEvent* event) {
+    QMainWindow::resizeEvent(event);
+    updateStemStatusBarGeometry();
 }
 
 MixxxMainWindow::~MixxxMainWindow() {

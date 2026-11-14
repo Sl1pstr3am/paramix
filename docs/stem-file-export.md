@@ -98,6 +98,13 @@ is a separate, user-facing artifact.
   shared scalar limiter, then calls `writeStemSet()` with the Settings -> Stems
   format. Progress and failures appear in an inline status bar at the bottom of
   the main window, with a cancel button, instead of a modal dialog.
+- The service also writes the ADR-002 playback cache:
+  `<settings>/StemCache/<track_id>/stems.flac`, one 8-channel FLAC
+  (drums/bass/other/vocals) at the source rate and frame count.
+  `SoundSourceProxy` prefers it for deck and waveform readers, sets the track's
+  stem labels/colors, and the service re-runs waveform analysis so the four
+  stem lanes are populated. Samplers and preview decks still read the original
+  stereo file.
 - Settings -> Stems binds the format, the AAC bitrate, the model path and the
   default stem files folder.
 
@@ -111,9 +118,9 @@ is a separate, user-facing artifact.
   for `AnalyzerWaveform` to analyze. The hook belongs with the cache writer.
 - A stems status column in the library. `StemService::trackStatusChanged` and
   `statusForTrack()` expose the state, but no model column displays it yet.
-- Automatic waveform population and deck playback. That needs the ADR-002
-  8-channel cache and the `SoundSourceStemCache` proxy hook; the exported
-  four-file set is not interleaved for the engine today.
+- Cache invalidation and generation directories. The cache is keyed only by
+  track id today; a changed source file or a new model overwrites it on the
+  next run rather than taking a new generation.
 - Resampling: separation requires 44.1 kHz input for now.
 - The service holds the decoded stereo track and the eight-channel output in
   memory, about 1 GB for a ten-minute track. The cache/writer path should stream

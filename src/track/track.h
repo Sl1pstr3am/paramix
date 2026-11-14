@@ -355,6 +355,12 @@ class Track : public QObject {
         // lock thread-unsafe copy constructors of QList
         return m_stemInfo;
     }
+    /// Replaces the in-memory stem labels/colors without marking the track
+    /// dirty. Used when a cached stem source is opened.
+    void setStemInfo(const QList<StemInfo>& stemInfo) {
+        const QMutexLocker lock(&m_qMutex);
+        setStemInfosWhileLocked(stemInfo);
+    }
     // Setter is only available internally. See setStemPointsWhileLocked
 
     bool hasStem() const {

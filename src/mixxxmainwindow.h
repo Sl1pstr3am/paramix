@@ -110,11 +110,13 @@ class MixxxMainWindow : public QMainWindow {
     /// Event filter to block certain events (eg. tooltips if tooltips are disabled)
     bool eventFilter(QObject* obj, QEvent* event) override;
     void closeEvent(QCloseEvent* event) override;
+    void resizeEvent(QResizeEvent* event) override;
 
   private:
     void initializeWindow();
     void checkDirectRendering();
     void setupStemStatusBar();
+    void updateStemStatusBarGeometry();
 
     /// Load skin to a QWidget that we set as the central widget.
     bool loadConfiguredSkin();
@@ -136,11 +138,12 @@ class MixxxMainWindow : public QMainWindow {
 
     QWidget* m_pCentralWidget;
     LaunchImage* m_pLaunchImage;
-    QStatusBar* m_pStemStatusBar = nullptr;
+    QWidget* m_pStemStatusBar = nullptr;
     QLabel* m_pStemStatusLabel = nullptr;
     QProgressBar* m_pStemProgress = nullptr;
     QPushButton* m_pStemCancelButton = nullptr;
     QTimer* m_pStemStatusTimer = nullptr;
+    bool m_stemStatusConnected = false;
 #ifndef __APPLE__
     Qt::WindowStates m_prevState;
 #endif
