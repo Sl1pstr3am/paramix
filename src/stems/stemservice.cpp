@@ -94,9 +94,9 @@ bool StemService::queueExport(const StemExportRequest& request) {
     const QString outputDirectory = request.outputDirectory.trimmed().isEmpty()
             ? defaultOutputDirectory()
             : request.outputDirectory;
-    const QString setName = sanitizeStemSetName(request.setName.trimmed().isEmpty()
-                    ? defaultSetName(request.track)
-                    : request.setName);
+    const QString setName = request.setName.trimmed().isEmpty()
+            ? uniqueStemSetName(outputDirectory, defaultSetName(request.track))
+            : sanitizeStemSetName(request.setName);
     const QString modelPathValue = modelPath();
     StemQueueRecord queued;
     queued.trackId = trackId;
@@ -186,6 +186,28 @@ void StemService::restoreQueuedJobs(TrackCollectionManager* pTrackCollectionMana
         request.setName = record.setName;
         queueExport(request);
     }
+}
+
+void StemService::removeStems(TrackId trackId) {
+    const QSqlDatabase database = mixxx::DbConnectionPooled(m_pDbConnectionPool);
+    if (!database.isOpen() || !trackId.isValid()) {
+        return;
+    }
+    StemSetDao dao(database);
+    const QList<StemSetRecord> records = dao.loadForTrack(trackId);
+    for (const auto& record : records) {
+        const QString setPath = QDir(record.directory).filePath(record.setName);
+        // Never delete a directory that is not recognisably a stem set.
+        if (!QFileInfo(QDir(setPath).filePath(QStringLiteral("stem-set.json"))).exists()) {
+            kLogger.warning() << "Skipping non-stem directory" << setPath;
+            continue;
+        }
+        if (!QDir(setPath).removeRecursively()) {
+            kLogger.warning() << "Failed to remove stem set" << setPath;
+        }
+    }
+    StemSetDao::deleteForTracks(database, QList<TrackId>{trackId});
+    setStatus(trackId, Status::NotSeparated, 0, QStringLiteral("Stems removed."));
 }
 
 StemService::Status StemService::statusForTrack(TrackId trackId) const {

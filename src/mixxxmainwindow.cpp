@@ -4,7 +4,12 @@
 #include <QCloseEvent>
 #include <QDebug>
 #include <QFileDialog>
+#include <QLabel>
 #include <QOpenGLContext>
+#include <QProgressBar>
+#include <QPushButton>
+#include <QStatusBar>
+#include <QTimer>
 #include <QUrl>
 
 #if defined(__LINUX__) && !defined(__ANDROID__)
@@ -46,6 +51,7 @@
 #include "skin/skinloader.h"
 #include "soundio/soundmanager.h"
 #include "sources/soundsourceproxy.h"
+#include "stems/stemservice.h"
 #include "track/track.h"
 #include "util/debug.h"
 #include "util/desktophelper.h"
@@ -329,7 +335,7 @@ void MixxxMainWindow::initialize() {
         reportCriticalErrorAndQuit(
                 "default skin cannot be loaded - see <b>mixxx</b> trace for more information");
         m_pCentralWidget = oldWidget;
-        //TODO (XXX) add dialog to warn user and launch skin choice page
+        // TODO (XXX) add dialog to warn user and launch skin choice page
     } else {
         m_pMenuBar->setStyleSheet(m_pCentralWidget->styleSheet());
     }
@@ -433,6 +439,8 @@ void MixxxMainWindow::initialize() {
             this,
             &MixxxMainWindow::slotUpdateWindowTitle);
 
+    setupStemStatusBar();
+
     // Start Auto DJ if the cmdline arg is passed.
     if (CmdlineArgs::Instance().getStartAutoDJ()) {
         qDebug("Enabling Auto DJ from CLI flag.");
@@ -444,6 +452,100 @@ void MixxxMainWindow::initialize() {
         // AutoDj is second from the top by default, all features collapsed).
         pLibrary->showAutoDJ();
     }
+}
+
+void MixxxMainWindow::setupStemStatusBar() {
+    auto* pStemService = mixxx::stems::StemService::instance();
+    if (pStemService == nullptr) {
+        return;
+    }
+
+    m_pStemStatusBar = statusBar();
+    m_pStemStatusBar->setSizeGripEnabled(false);
+    m_pStemStatusBar->setAutoFillBackground(true);
+
+    const QColor windowColor = palette().color(QPalette::Window);
+    const QColor textColor = palette().color(QPalette::WindowText);
+    const QColor borderColor = windowColor.lighter(140);
+    const QColor highlightColor = palette().color(QPalette::Highlight);
+    m_pStemStatusBar->setStyleSheet(
+            QStringLiteral(
+                    "QStatusBar { background-color: %1; color: %2; "
+                    "border-top: 1px solid %3; } "
+                    "QStatusBar::item { border: none; } "
+                    "QProgressBar { border: 1px solid %3; border-radius: 2px; "
+                    "background-color: transparent; text-align: center; "
+                    "color: %2; max-height: 12px; } "
+                    "QProgressBar::chunk { background-color: %4; } "
+                    "QPushButton { border: none; padding: 2px 8px; color: %2; } "
+                    "QPushButton:hover { background-color: %3; }")
+                    .arg(windowColor.name(),
+                            textColor.name(),
+                            borderColor.name(),
+                            highlightColor.name()));
+
+    m_pStemStatusLabel = new QLabel(m_pStemStatusBar);
+    m_pStemStatusLabel->setContentsMargins(6, 0, 6, 0);
+    // Always white: the status bar sits on the dark window background regardless
+    // of the skin's WindowText color.
+    m_pStemStatusLabel->setStyleSheet(QStringLiteral("color: white;"));
+    m_pStemProgress = new QProgressBar(m_pStemStatusBar);
+    m_pStemProgress->setRange(0, 100);
+    m_pStemProgress->setTextVisible(false);
+    m_pStemProgress->setFixedWidth(140);
+    m_pStemCancelButton = new QPushButton(tr("Cancel"), m_pStemStatusBar);
+    m_pStemCancelButton->setFlat(true);
+    m_pStemCancelButton->setCursor(Qt::PointingHandCursor);
+
+    m_pStemStatusTimer = new QTimer(this);
+    m_pStemStatusTimer->setSingleShot(true);
+
+    m_pStemStatusBar->addWidget(m_pStemStatusLabel, 1);
+    m_pStemStatusBar->addPermanentWidget(m_pStemProgress);
+    m_pStemStatusBar->addPermanentWidget(m_pStemCancelButton);
+    m_pStemStatusBar->hide();
+
+    connect(pStemService,
+            &mixxx::stems::StemService::trackStatusChanged,
+            this,
+            [this](TrackId,
+                    mixxx::stems::StemService::Status status,
+                    int progress,
+                    const QString& message) {
+                using Status = mixxx::stems::StemService::Status;
+                if (status == Status::Queued || status == Status::Separating) {
+                    m_pStemStatusTimer->stop();
+                    m_pStemStatusLabel->setText(
+                            message.isEmpty() ? tr("Separating stems...") : message);
+                    m_pStemProgress->setValue(progress);
+                    m_pStemProgress->show();
+                    m_pStemCancelButton->show();
+                    m_pStemStatusBar->show();
+                    return;
+                }
+
+                if (status == Status::Ready) {
+                    m_pStemStatusLabel->setText(tr("Stems saved."));
+                } else if (status == Status::Failed) {
+                    m_pStemStatusLabel->setText(
+                            message.isEmpty() ? tr("Stem separation failed.") : message);
+                } else {
+                    m_pStemStatusLabel->setText(
+                            message.isEmpty() ? tr("Stem export canceled.") : message);
+                }
+                m_pStemProgress->hide();
+                m_pStemCancelButton->hide();
+                m_pStemStatusBar->show();
+                m_pStemStatusTimer->start(8000);
+            });
+    connect(m_pStemStatusTimer,
+            &QTimer::timeout,
+            m_pStemStatusBar,
+            &QStatusBar::hide);
+    connect(m_pStemCancelButton,
+            &QPushButton::clicked,
+            pStemService,
+            &mixxx::stems::StemService::cancelAll);
 }
 
 MixxxMainWindow::~MixxxMainWindow() {
@@ -621,7 +723,7 @@ void MixxxMainWindow::alwaysHideMenuBarDlg() {
 #endif
 
 QDialog::DialogCode MixxxMainWindow::soundDeviceErrorDlg(
-        const QString &title, const QString &text, bool* retryClicked) {
+        const QString& title, const QString& text, bool* retryClicked) {
     QMessageBox msgBox;
     msgBox.setIcon(QMessageBox::Warning);
     msgBox.setWindowTitle(title);
@@ -636,8 +738,7 @@ QDialog::DialogCode MixxxMainWindow::soundDeviceErrorDlg(
     QPushButton* exitButton =
             msgBox.addButton(tr("Exit"), QMessageBox::ActionRole);
 
-    while (true)
-    {
+    while (true) {
         msgBox.exec();
 
         if (msgBox.clickedButton() == retryButton) {
@@ -726,19 +827,18 @@ QDialog::DialogCode MixxxMainWindow::noOutputDlg(bool* continueClicked) {
     msgBox.setWindowTitle(tr("No Output Devices"));
     msgBox.setText(
             "<html>" + tr("Mixxx was configured without any output sound devices. "
-            "Audio processing will be disabled without a configured output device.") +
+                          "Audio processing will be disabled without a configured output device.") +
             "<ul>"
-                "<li>" +
-                    tr("<b>Continue</b> without any outputs.") +
-                "</li>"
-                "<li>" +
-                    tr("<b>Reconfigure</b> Mixxx's sound device settings.") +
-                "</li>"
-                "<li>" +
-                    tr("<b>Exit</b> Mixxx.") +
-                "</li>"
-            "</ul></html>"
-    );
+            "<li>" +
+            tr("<b>Continue</b> without any outputs.") +
+            "</li>"
+            "<li>" +
+            tr("<b>Reconfigure</b> Mixxx's sound device settings.") +
+            "</li>"
+            "<li>" +
+            tr("<b>Exit</b> Mixxx.") +
+            "</li>"
+            "</ul></html>");
 
     QPushButton* continueButton =
             msgBox.addButton(tr("Continue"), QMessageBox::ActionRole);
@@ -747,8 +847,7 @@ QDialog::DialogCode MixxxMainWindow::noOutputDlg(bool* continueClicked) {
     QPushButton* exitButton =
             msgBox.addButton(tr("Exit"), QMessageBox::ActionRole);
 
-    while (true)
-    {
+    while (true) {
         msgBox.exec();
 
         if (msgBox.clickedButton() == continueButton) {
@@ -1023,7 +1122,7 @@ void MixxxMainWindow::slotFileLoadSongPlayer(int deck) {
 
     QString loadTrackText = tr("Load track to Deck %1").arg(QString::number(deck));
     QString deckWarningMessage = tr("Deck %1 is currently playing a track.")
-            .arg(QString::number(deck));
+                                         .arg(QString::number(deck));
     QString areYouSure = tr("Are you sure you want to load a new track?");
 
     if (ControlObject::get(ConfigKey(group, "play")) > 0.0) {
@@ -1357,8 +1456,8 @@ void MixxxMainWindow::rebootMixxxView() {
 
     if (!loadConfiguredSkin()) {
         QMessageBox::critical(this,
-                              tr("Error in skin file"),
-                              tr("The selected skin cannot be loaded."));
+                tr("Error in skin file"),
+                tr("The selected skin cannot be loaded."));
         m_inRebootMixxxView = false;
         // m_pWidgetParent is NULL, we can't continue.
         return;
@@ -1517,7 +1616,7 @@ bool MixxxMainWindow::eventFilter(QObject* obj, QEvent* event) {
     return QMainWindow::eventFilter(obj, event);
 }
 
-void MixxxMainWindow::closeEvent(QCloseEvent *event) {
+void MixxxMainWindow::closeEvent(QCloseEvent* event) {
     // WARNING: We can receive a CloseEvent while only partially
     // initialized. This is because we call QApplication::processEvents to
     // render LaunchImage progress in the constructor.
@@ -1546,7 +1645,7 @@ void MixxxMainWindow::checkDirectRendering() {
     UserSettingsPointer pConfig = m_pCoreServices->getSettings();
 
     if (!factory->isOpenGlAvailable() && !factory->isOpenGlesAvailable() &&
-        pConfig->getValueString(ConfigKey("[Direct Rendering]", "Warned")) != QString("yes")) {
+            pConfig->getValueString(ConfigKey("[Direct Rendering]", "Warned")) != QString("yes")) {
         QMessageBox::warning(nullptr,
                 tr("OpenGL Direct Rendering"),
                 tr("Direct rendering is not enabled on your machine.<br><br>"
@@ -1584,31 +1683,29 @@ bool MixxxMainWindow::confirmExit() {
     }
     if (playing) {
         QMessageBox::StandardButton btn = QMessageBox::question(this,
-            tr("Confirm Exit"),
-            tr("A deck is currently playing. Exit Mixxx?"),
-            QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+                tr("Confirm Exit"),
+                tr("A deck is currently playing. Exit Mixxx?"),
+                QMessageBox::Yes | QMessageBox::No,
+                QMessageBox::No);
         if (btn == QMessageBox::No) {
             return false;
         }
     } else if (playingSampler) {
         QMessageBox::StandardButton btn = QMessageBox::question(this,
-            tr("Confirm Exit"),
-            tr("A sampler is currently playing. Exit Mixxx?"),
-            QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+                tr("Confirm Exit"),
+                tr("A sampler is currently playing. Exit Mixxx?"),
+                QMessageBox::Yes | QMessageBox::No,
+                QMessageBox::No);
         if (btn == QMessageBox::No) {
             return false;
         }
     }
     if (m_pPrefDlg && m_pPrefDlg->isVisible()) {
         QMessageBox::StandardButton btn = QMessageBox::question(
-            this, tr("Confirm Exit"),
-            tr("The preferences window is still open.") + "<br>" +
-            tr("Discard any changes and exit Mixxx?"),
-            QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+                this, tr("Confirm Exit"), tr("The preferences window is still open.") + "<br>" + tr("Discard any changes and exit Mixxx?"), QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
         if (btn == QMessageBox::No) {
             return false;
-        }
-        else {
+        } else {
             m_pPrefDlg->close();
         }
     }

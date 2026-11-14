@@ -61,6 +61,10 @@ class StemService : public QThread, public Singleton<StemService> {
     /// called on the main thread, because it resolves tracks by id.
     void restoreQueuedJobs(TrackCollectionManager* pTrackCollectionManager);
 
+    /// Deletes the exported sets recorded for a track and forgets them. Only
+    /// directories that contain a `stem-set.json` are removed.
+    void removeStems(TrackId trackId);
+
     /// Stops dequeuing new jobs. A running job pauses at its next block.
     void pause();
     void resume();

@@ -1,5 +1,6 @@
 #include "preferences/dialog/dlgprefstems.h"
 
+#include <QDir>
 #include <QFileDialog>
 #include <QFileInfo>
 
@@ -9,6 +10,7 @@
 namespace {
 constexpr char kGroup[] = "[Stems]";
 constexpr char kModelPathKey[] = "ModelPath";
+constexpr char kOutputDirectoryKey[] = "OutputDirectory";
 } // namespace
 
 DlgPrefStems::DlgPrefStems(QWidget* pParent, UserSettingsPointer pConfig)
@@ -19,6 +21,10 @@ DlgPrefStems::DlgPrefStems(QWidget* pParent, UserSettingsPointer pConfig)
             &QPushButton::clicked,
             this,
             &DlgPrefStems::slotBrowseModel);
+    connect(pushButtonBrowseOutput,
+            &QPushButton::clicked,
+            this,
+            &DlgPrefStems::slotBrowseOutput);
     connect(comboBoxFormat,
             QOverload<int>::of(&QComboBox::currentIndexChanged),
             this,
@@ -38,19 +44,38 @@ QUrl DlgPrefStems::helpUrl() const {
 void DlgPrefStems::slotUpdate() {
     m_settings = mixxx::stems::readStemExportSettings(m_pConfig);
     m_modelPath = m_pConfig->getValue(ConfigKey(kGroup, kModelPathKey), QString());
+    m_outputDirectory = m_pConfig->getValue(ConfigKey(kGroup, kOutputDirectoryKey),
+            QDir(m_pConfig->getSettingsPath()).filePath(QStringLiteral("Stems")));
     updateGui();
 }
 
 void DlgPrefStems::slotApply() {
     m_settings.aacBitrateKbps = spinBoxAacBitrate->value();
     m_modelPath = lineEditModelPath->text().trimmed();
+    m_outputDirectory = lineEditOutputDirectory->text().trimmed();
+    if (m_outputDirectory.isEmpty()) {
+        m_outputDirectory = QDir(m_pConfig->getSettingsPath()).filePath(QStringLiteral("Stems"));
+    }
     mixxx::stems::writeStemExportSettings(m_pConfig, m_settings);
     m_pConfig->setValue(ConfigKey(kGroup, kModelPathKey), m_modelPath);
+    m_pConfig->setValue(ConfigKey(kGroup, kOutputDirectoryKey), m_outputDirectory);
 }
 
 void DlgPrefStems::slotResetToDefaults() {
     m_settings = mixxx::stems::StemExportSettings();
     m_modelPath.clear();
+    m_outputDirectory = QDir(m_pConfig->getSettingsPath()).filePath(QStringLiteral("Stems"));
+    updateGui();
+}
+
+void DlgPrefStems::slotBrowseOutput() {
+    const QString path = QFileDialog::getExistingDirectory(this,
+            tr("Select Stem Files Folder"),
+            m_outputDirectory);
+    if (path.isEmpty()) {
+        return;
+    }
+    m_outputDirectory = path;
     updateGui();
 }
 
@@ -90,4 +115,5 @@ void DlgPrefStems::updateGui() {
             m_settings.format == mixxx::stems::StemFileFormat::Aac);
     labelAacBitrate->setEnabled(m_settings.format == mixxx::stems::StemFileFormat::Aac);
     lineEditModelPath->setText(m_modelPath);
+    lineEditOutputDirectory->setText(m_outputDirectory);
 }

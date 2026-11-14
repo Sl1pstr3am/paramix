@@ -21,6 +21,7 @@ class DlgPrefStems : public DlgPreferencePage, public Ui::DlgStemsDlg {
 
   private slots:
     void slotBrowseModel();
+    void slotBrowseOutput();
     void slotFormatChanged(int index);
 
   private:
@@ -29,4 +30,5 @@ class DlgPrefStems : public DlgPreferencePage, public Ui::DlgStemsDlg {
     const UserSettingsPointer m_pConfig;
     mixxx::stems::StemExportSettings m_settings;
     QString m_modelPath;
+    QString m_outputDirectory;
 };
