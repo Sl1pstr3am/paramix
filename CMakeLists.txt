@@ -1461,6 +1461,7 @@ add_library(
   src/library/dao/libraryhashdao.cpp
   src/library/dao/playlistdao.cpp
   src/library/dao/settingsdao.cpp
+  src/library/dao/stemsetdao.cpp
   src/library/dao/trackdao.cpp
   src/library/dao/trackschema.cpp
   src/library/tabledelegates/defaultdelegate.cpp
@@ -1613,6 +1614,8 @@ add_library(
   src/preferences/dialog/dlgprefsounddlg.ui
   src/preferences/dialog/dlgprefsounditem.cpp
   src/preferences/dialog/dlgprefsounditem.ui
+  src/preferences/dialog/dlgprefstems.cpp
+  src/preferences/dialog/dlgprefstemsdlg.ui
   src/preferences/dialog/dlgprefvinyldlg.ui
   src/preferences/dialog/dlgprefwaveform.cpp
   src/preferences/dialog/dlgprefwaveformdlg.ui
@@ -1661,6 +1664,7 @@ add_library(
   src/stems/stemfileformat.cpp
   src/stems/stemfilewriter.cpp
   src/stems/stemseparation.cpp
+  src/stems/stemservice.cpp
   src/stems/stemseparatorfactory.cpp
   src/stems/stemseparation.cpp
   src/track/albuminfo.cpp
@@ -3029,6 +3033,7 @@ if(BUILD_TESTING)
     src/test/soundproxy_test.cpp
     src/test/stemfilewritertest.cpp
     src/test/stemflactest.cpp
+    src/test/stemsetdaotest.cpp
     src/test/soundsourceproviderregistrytest.cpp
     src/test/sqliteliketest.cpp
     src/test/stemseparationtest.cpp

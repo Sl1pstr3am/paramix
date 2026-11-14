@@ -52,6 +52,7 @@
 #endif
 #include "soundio/soundmanager.h"
 #include "sources/soundsourceproxy.h"
+#include "stems/stemservice.h"
 #include "util/clipboard.h"
 #include "util/db/dbconnectionpooled.h"
 #include "util/font.h"
@@ -582,6 +583,8 @@ void CoreServices::initialize() {
             m_pPlayerManager.get(),
             m_pRecordingManager.get());
 
+    mixxx::stems::StemService::createInstance(pConfig, m_pDbConnectionPool);
+
     OverviewCache* pOverviewCache = OverviewCache::createInstance(pConfig, m_pDbConnectionPool);
     connect(&(m_pTrackCollectionManager->internalCollection()->getTrackDAO()),
             &TrackDAO::waveformSummaryUpdated,
@@ -877,6 +880,7 @@ void CoreServices::finalize() {
     qDebug() << t.elapsed(false).debugMillisWithUnit() << "stopping pending Library tasks";
     m_pTrackCollectionManager->stopLibraryScan();
     m_pLibrary->stopPendingTasks();
+    mixxx::stems::StemService::destroy();
 
     qDebug() << t.elapsed(false).debugMillisWithUnit() << "saving configuration";
     m_pSettingsManager->save();

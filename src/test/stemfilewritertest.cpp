@@ -108,6 +108,19 @@ TEST_F(StemFileFormatTest, SanitizesStemSetNames) {
             sanitizeStemSetName(QStringLiteral("name.  ")));
 }
 
+TEST_F(StemFileFormatTest, PicksAUniqueStemSetName) {
+    QTemporaryDir temp;
+    ASSERT_TRUE(temp.isValid());
+    const QString directory = temp.path();
+    EXPECT_EQ(QStringLiteral("Track"), uniqueStemSetName(directory, QStringLiteral("Track")));
+    ASSERT_TRUE(QDir(directory).mkdir(QStringLiteral("Track")));
+    EXPECT_EQ(QStringLiteral("Track (2)"),
+            uniqueStemSetName(directory, QStringLiteral("Track")));
+    ASSERT_TRUE(QDir(directory).mkdir(QStringLiteral("Track (2)")));
+    EXPECT_EQ(QStringLiteral("Track (3)"),
+            uniqueStemSetName(directory, QStringLiteral("Track")));
+}
+
 class StemFileWriterTest : public testing::Test {};
 
 TEST_F(StemFileWriterTest, WritesFlacSetAndRoundTrips) {

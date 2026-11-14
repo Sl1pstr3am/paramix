@@ -34,6 +34,10 @@ writing.
 The feature branches remain on the remote but are no longer needed. The
 placeholder `STEM_SEPARATION` option and the ORT backend are now in `main`.
 
+Stems 3 integration (this branch, PR #23) adds schema revision 41, the Settings
+-> Stems page, the "Save Stems As..." action and `StemService`, which applies
+the shared limiter and calls `writeStemSet()`.
+
 **Program board:** <https://github.com/users/christianstuart/projects/2>
 
 | Card | Status |
@@ -170,35 +174,16 @@ last configured with `ON` and ORT is not present.
 
 The implementation and docs stack is merged to `main`. Start at B.
 
-### B. Stems 3 integration (start here)
+### B. Stems 3 integration (done)
 
-The writer and format setting exist; they are not wired to the library yet.
-
-1. **Schema revision 41** (coordinate first; `res/schema.xml` is
-   collision-prone):
-   - Add a `stem_set` table (or columns on the track) for the output directory,
-     format, model, sample rate, frame count, AAC bitrate and creation time.
-   - Keep `min_compatible="3"` so older builds can still open the library.
-   - Add the DAO and migration tests.
-2. **Library action and service call**
-   - After `DemucsOnnxSeparator::separate()` completes, collect the
-     interleaved 8-channel output and call `writeStemSet()` with
-     `readStemExportSettings()`.
-   - Apply `demucsLimiterGain()` from `#18` before writing: the wrapper
-     currently emits raw, unclipped stems.
-   - On success, insert the `stem_set` row and emit a progress/status signal.
-3. **Settings -> Stems**
-   - Bind a combo to `[Stems],FileFormat` (`flac`, `alac`, `aac`) and a
-     bitrate control to `[Stems],AacBitrate` (32..512).
-   - Use `readStemExportSettings()` / `writeStemExportSettings()`.
-4. **Context action**
-   - "Save Stems As..." chooses an output folder and a set name; the writer
-     refuses an existing name, so generate a unique default.
-5. **Playback**
-   - Keep the ADR-002 8-channel FLAC cache as the playback path.
-   - Direct playback of the exported four-file set is optional and needs a
-     `SoundSourceStemSet` that interleaves the four files; do not block the
-     export on it.
+- Schema revision 41 (`stem_set`) with `StemSetDao` and DAO tests.
+- Settings -> Stems binds `[Stems],FileFormat` and `[Stems],AacBitrate`, plus
+  `[Stems],ModelPath` so a local model can be selected.
+- "Save Stems As..." is in the track context menu; one track asks for a set
+  name, several tracks derive unique names.
+- `StemService` applies `demucsLimiterGain()` before `writeStemSet()` and
+  inserts the `stem_set` row. It runs on a low-priority background thread and
+  reports progress per track.
 
 ### C. Stems 4 - background queue and service
 

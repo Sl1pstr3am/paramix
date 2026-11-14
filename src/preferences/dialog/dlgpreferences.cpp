@@ -43,6 +43,7 @@
 #include "preferences/dialog/dlgprefkey.h"
 #include "preferences/dialog/dlgprefrecord.h"
 #include "preferences/dialog/dlgprefreplaygain.h"
+#include "preferences/dialog/dlgprefstems.h"
 
 #ifdef __MODPLUG__
 #include "preferences/dialog/dlgprefmodplug.h"
@@ -231,6 +232,12 @@ DlgPreferences::DlgPreferences(
                           new QTreeWidgetItem(contentsTreeWidget, QTreeWidgetItem::Type)),
             tr("Beat Detection"),
             "ic_preferences_bpmdetect.svg");
+
+    addPageWidget(PreferencesPage(
+                          new DlgPrefStems(this, m_pConfig),
+                          new QTreeWidgetItem(contentsTreeWidget, QTreeWidgetItem::Type)),
+            tr("Stems"),
+            "ic_preferences_equalizers.svg");
 
     addPageWidget(PreferencesPage(
                           new DlgPrefKey(this, m_pConfig),

@@ -20,7 +20,7 @@
 class DlgTagFetcher;
 class DlgTrackInfo;
 class DlgTrackInfoMulti;
-//class DlgDeleteFilesConfirmation;
+// class DlgDeleteFilesConfirmation;
 class ExternalTrackCollection;
 class FindOnWebLast;
 class Library;
@@ -59,11 +59,12 @@ class WTrackMenu : public QMenu {
         SelectInLibrary = 1 << 15,
         Analyze = 1 << 16,
         FindOnWeb = 1 << 17,
+        StemExport = 1 << 18,
         TrackModelFeatures = Remove | HideUnhidePurge,
         All = AutoDJ | LoadTo | Playlist | Crate | Remove | Metadata | Reset | Analyze |
                 BPM | Color | HideUnhidePurge | RemoveFromDisk | FileBrowser |
                 Properties | SearchRelated | UpdateReplayGainFromPregain | SelectInLibrary |
-                FindOnWeb
+                FindOnWeb | StemExport
     };
     Q_DECLARE_FLAGS(Features, Feature)
 
@@ -162,6 +163,9 @@ class WTrackMenu : public QMenu {
     void slotReanalyze();
     void slotReanalyzeWithFixedTempo();
     void slotReanalyzeWithVariableTempo();
+
+    // Stem export
+    void slotStemExport();
 
     // BPM
     void slotLockBpm();
@@ -358,6 +362,9 @@ class WTrackMenu : public QMenu {
     parented_ptr<QAction> m_pReanalyzeAction;
     parented_ptr<QAction> m_pReanalyzeConstBpmAction;
     parented_ptr<QAction> m_pReanalyzeVarBpmAction;
+
+    // Stem export
+    parented_ptr<QAction> m_pStemExportAction;
 
     // Clear track metadata actions
     parented_ptr<QAction> m_pClearBeatsAction;
