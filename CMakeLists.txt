@@ -1461,6 +1461,7 @@ add_library(
   src/library/dao/libraryhashdao.cpp
   src/library/dao/playlistdao.cpp
   src/library/dao/settingsdao.cpp
+  src/library/dao/stemqueuedao.cpp
   src/library/dao/stemsetdao.cpp
   src/library/dao/trackdao.cpp
   src/library/dao/trackschema.cpp

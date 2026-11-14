@@ -3,6 +3,7 @@
 #include <QSqlQuery>
 #include <QVariant>
 
+#include "library/dao/stemqueuedao.h"
 #include "library/dao/stemsetdao.h"
 #include "test/librarytest.h"
 
@@ -14,6 +15,9 @@ TEST_F(StemSetDaoTest, Revision41CreatesStemSetTable) {
             "SELECT id, track_id, set_name, directory, format, model, "
             "sample_rate, frame_count, aac_bitrate_kbps, created_at "
             "FROM stem_set LIMIT 1")));
+    ASSERT_TRUE(query.exec(QStringLiteral(
+            "SELECT track_id, output_directory, set_name, format, "
+            "aac_bitrate_kbps, created_at FROM stem_queue LIMIT 1")));
 }
 
 TEST_F(StemSetDaoTest, InsertLoadAndDelete) {
@@ -72,4 +76,33 @@ TEST_F(StemSetDaoTest, RecordsAacBitrate) {
     ASSERT_TRUE(dao.insert(record));
     ASSERT_EQ(1, dao.loadForTrack(TrackId(QVariant(2))).size());
     EXPECT_EQ(192, dao.loadForTrack(TrackId(QVariant(2))).first().aacBitrateKbps);
+}
+
+TEST_F(StemSetDaoTest, StemQueueRoundTrip) {
+    QSqlDatabase db = dbConnection();
+    QSqlQuery query(db);
+    ASSERT_TRUE(query.exec(
+            QStringLiteral("INSERT INTO library (id, artist, title) "
+                           "VALUES (3, 'Artist', 'Title')")));
+
+    StemQueueDao dao(db);
+    StemQueueRecord record;
+    record.trackId = TrackId(QVariant(3));
+    record.outputDirectory = QStringLiteral("C:/Stems");
+    record.setName = QStringLiteral("Title");
+    record.format = QStringLiteral("aac");
+    record.aacBitrateKbps = 256;
+    ASSERT_TRUE(dao.upsert(record));
+    ASSERT_EQ(1, dao.loadAll().size());
+    EXPECT_EQ(QStringLiteral("Title"), dao.loadAll().first().setName);
+    EXPECT_EQ(256, dao.loadAll().first().aacBitrateKbps);
+
+    // A second request for the same track replaces the row.
+    record.setName = QStringLiteral("Title (2)");
+    ASSERT_TRUE(dao.upsert(record));
+    ASSERT_EQ(1, dao.loadAll().size());
+    EXPECT_EQ(QStringLiteral("Title (2)"), dao.loadAll().first().setName);
+
+    ASSERT_TRUE(dao.remove(TrackId(QVariant(3))));
+    EXPECT_TRUE(dao.loadAll().isEmpty());
 }

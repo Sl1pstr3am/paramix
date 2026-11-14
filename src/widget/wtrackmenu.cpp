@@ -4,12 +4,14 @@
 #include <QDialogButtonBox>
 #include <QDir>
 #include <QFileDialog>
+#include <QHash>
 #include <QInputDialog>
 #include <QList>
 #include <QListWidget>
 #include <QMessageBox>
 #include <QModelIndex>
 #include <QProgressDialog>
+#include <QSet>
 #include <QVBoxLayout>
 
 #include "analyzer/analyzerscheduledtrack.h"
@@ -1829,14 +1831,15 @@ void WTrackMenu::slotStemExport() {
     if (pService == nullptr) {
         return;
     }
-    const TrackPointerList tracks = getTrackPointers();
-    if (tracks.size() != 1 || !tracks.first()) {
-        QMessageBox::information(this,
-                tr("Save Stems As..."),
-                tr("Select a single track to export stems."));
+    TrackPointerList tracks;
+    for (const auto& pTrack : getTrackPointers()) {
+        if (pTrack) {
+            tracks.append(pTrack);
+        }
+    }
+    if (tracks.isEmpty()) {
         return;
     }
-    const TrackPointer pTrack = tracks.first();
 
     const QString defaultDirectory = m_pConfig->getValue(
             ConfigKey("[Stems]", "OutputDirectory"),
@@ -1848,34 +1851,55 @@ void WTrackMenu::slotStemExport() {
         return;
     }
 
-    const QString suggestedName = mixxx::stems::uniqueStemSetName(
-            directory,
-            pTrack->getTitle().trimmed().isEmpty() ? QStringLiteral("stems")
-                                                   : pTrack->getTitle());
-    bool accepted = false;
-    const QString setName = QInputDialog::getText(this,
-            tr("Save Stems As..."),
-            tr("Stem set name:"),
-            QLineEdit::Normal,
-            suggestedName,
-            &accepted);
-    if (!accepted || setName.trimmed().isEmpty()) {
-        return;
+    QString singleSetName;
+    if (tracks.size() == 1) {
+        const QString title = tracks.first()->getTitle().trimmed();
+        bool accepted = false;
+        singleSetName = QInputDialog::getText(this,
+                tr("Save Stems As..."),
+                tr("Stem set name:"),
+                QLineEdit::Normal,
+                mixxx::stems::uniqueStemSetName(directory,
+                        title.isEmpty() ? QStringLiteral("stems") : title),
+                &accepted);
+        if (!accepted || singleSetName.trimmed().isEmpty()) {
+            return;
+        }
     }
 
-    mixxx::stems::StemExportRequest request;
-    request.track = pTrack;
-    request.outputDirectory = directory;
-    request.setName = setName;
-    if (!pService->queueExport(request)) {
+    QList<TrackId> queuedTracks;
+    QSet<QString> usedNames;
+    for (const auto& pTrack : std::as_const(tracks)) {
+        const QString title = pTrack->getTitle().trimmed();
+        QString setName = tracks.size() == 1
+                ? singleSetName
+                : mixxx::stems::uniqueStemSetName(directory,
+                          title.isEmpty() ? QStringLiteral("stems") : title);
+        for (int suffix = 2; usedNames.contains(setName); ++suffix) {
+            setName = QStringLiteral("%1 (%2)")
+                              .arg(mixxx::stems::sanitizeStemSetName(
+                                      title.isEmpty() ? QStringLiteral("stems")
+                                                      : title))
+                              .arg(suffix);
+        }
+        usedNames.insert(setName);
+
+        mixxx::stems::StemExportRequest request;
+        request.track = pTrack;
+        request.outputDirectory = directory;
+        request.setName = setName;
+        if (pService->queueExport(request)) {
+            queuedTracks.append(pTrack->getId());
+        }
+    }
+    if (queuedTracks.isEmpty()) {
         QMessageBox::information(this,
                 tr("Save Stems As..."),
-                tr("This track is already queued for stem separation."));
+                tr("These tracks are already queued for stem separation."));
         return;
     }
 
-    const TrackId trackId = pTrack->getId();
-    QProgressDialog progress(tr("Separating stems for %1...").arg(pTrack->getTitle()),
+    QProgressDialog progress(tr("Separating stems..."),
             tr("Cancel"),
             0,
             100,
@@ -1885,41 +1909,82 @@ void WTrackMenu::slotStemExport() {
     progress.setAutoClose(false);
     progress.setAutoReset(false);
 
-    QString message;
-    const auto connection = connect(pService,
-            &mixxx::stems::StemService::trackStatusChanged,
-            this,
-            [&progress, &message, trackId](TrackId changedTrackId,
-                    mixxx::stems::StemService::Status status,
-                    int percentage,
-                    const QString& statusMessage) {
-                if (changedTrackId != trackId) {
-                    return;
-                }
-                progress.setValue(percentage);
-                switch (status) {
-                case mixxx::stems::StemService::Status::Ready:
-                    message = tr("Stems were saved.");
-                    progress.close();
-                    break;
-                case mixxx::stems::StemService::Status::Failed:
-                    message = statusMessage;
-                    progress.close();
-                    break;
-                case mixxx::stems::StemService::Status::NotSeparated:
-                    message = statusMessage.isEmpty() ? tr("Canceled.") : statusMessage;
-                    progress.close();
-                    break;
-                default:
-                    break;
-                }
-            });
+    QSet<TrackId> wanted;
+    for (const auto& trackId : std::as_const(queuedTracks)) {
+        wanted.insert(trackId);
+    }
+    const int totalTracks = static_cast<int>(wanted.size());
+    QHash<TrackId, int> percentages;
+    QSet<TrackId> reported;
+    QStringList failures;
+    int finished = 0;
+    auto handleStatus = [&](TrackId trackId,
+                                mixxx::stems::StemService::Status status,
+                                int percentage,
+                                const QString& statusMessage) {
+        if (!wanted.contains(trackId)) {
+            return;
+        }
+        const bool terminal =
+                status == mixxx::stems::StemService::Status::Ready ||
+                status == mixxx::stems::StemService::Status::Failed ||
+                status == mixxx::stems::StemService::Status::NotSeparated;
+        if (terminal && reported.contains(trackId)) {
+            return;
+        }
+        percentages.insert(trackId, terminal ? 100 : percentage);
+        if (terminal) {
+            reported.insert(trackId);
+            ++finished;
+            if (status == mixxx::stems::StemService::Status::Failed) {
+                failures.append(statusMessage);
+            }
+        }
+        int totalPercentage = 0;
+        for (auto it = percentages.constBegin(); it != percentages.constEnd(); ++it) {
+            totalPercentage += it.value();
+        }
+        progress.setLabelText(tr("Separating stems (%1 of %2)...")
+                        .arg(std::min(finished + 1, totalTracks))
+                        .arg(totalTracks));
+        progress.setValue(totalPercentage / std::max(1, totalTracks));
+        if (finished >= totalTracks) {
+            progress.close();
+        }
+    };
+    const auto connection =
+            connect(pService,
+                    &mixxx::stems::StemService::trackStatusChanged,
+                    this,
+                    handleStatus);
+    // A job can finish before the connection above exists, in which case its
+    // terminal signal is gone. Pick up that state once.
+    for (const auto& trackId : std::as_const(queuedTracks)) {
+        const mixxx::stems::StemService::Status status = pService->statusForTrack(trackId);
+        if (status == mixxx::stems::StemService::Status::Ready ||
+                status == mixxx::stems::StemService::Status::Failed ||
+                status == mixxx::stems::StemService::Status::NotSeparated) {
+            handleStatus(trackId,
+                    status,
+                    status == mixxx::stems::StemService::Status::Ready ? 100 : 0,
+                    pService->lastMessageForTrack(trackId));
+        }
+    }
     connect(&progress, &QProgressDialog::canceled, pService, &mixxx::stems::StemService::cancelAll);
-    progress.exec();
+    if (finished < totalTracks) {
+        progress.exec();
+    }
     disconnect(connection);
 
-    if (!message.isEmpty()) {
-        QMessageBox::information(this, tr("Save Stems As..."), message);
+    if (!failures.isEmpty()) {
+        QMessageBox::warning(this,
+                tr("Save Stems As..."),
+                tr("Some stem sets could not be written:\n\n%1")
+                        .arg(failures.join(QLatin1Char('\n'))));
+    } else if (finished >= totalTracks) {
+        QMessageBox::information(this,
+                tr("Save Stems As..."),
+                tr("Stems were saved to %1.").arg(directory));
     }
 }
 

@@ -34,10 +34,6 @@ writing.
 The feature branches remain on the remote but are no longer needed. The
 placeholder `STEM_SEPARATION` option and the ORT backend are now in `main`.
 
-Stems 3 integration (this branch, PR #23) adds schema revision 41, the Settings
--> Stems page, the "Save Stems As..." action and `StemService`, which applies
-the shared limiter and calls `writeStemSet()`.
-
 **Program board:** <https://github.com/users/christianstuart/projects/2>
 
 | Card | Status |
@@ -176,26 +172,28 @@ The implementation and docs stack is merged to `main`. Start at B.
 
 ### B. Stems 3 integration (done)
 
-- Schema revision 41 (`stem_set`) with `StemSetDao` and DAO tests.
-- Settings -> Stems binds `[Stems],FileFormat` and `[Stems],AacBitrate`, plus
-  `[Stems],ModelPath` so a local model can be selected.
+- Schema revisions 41 (`stem_set`) and 42 (`stem_queue`) with
+  `StemSetDao`/`StemQueueDao` and DAO tests.
+- Settings -> Stems binds `[Stems],FileFormat`, `[Stems],AacBitrate` and
+  `[Stems],ModelPath`.
 - "Save Stems As..." is in the track context menu; one track asks for a set
   name, several tracks derive unique names.
 - `StemService` applies `demucsLimiterGain()` before `writeStemSet()` and
-  inserts the `stem_set` row. It runs on a low-priority background thread and
-  reports progress per track.
+  inserts the `stem_set` row.
 
-### C. Stems 4 - background queue and service
+### C. Stems 4 - background queue (done, except the cache trigger)
 
-- Add `StemService` under `CoreServices`: a persistent low-priority queue for
-  single-track and batch jobs, pause/cancel/resume, free-space preflight and
-  per-track status (`NotSeparated`, `Queued`, `Separating%`, `Ready`,
-  `MissingStemFile`, `Failed`).
-- Use `DemucsOnnxSeparator` for the job. It owns the whole-track loop, so the
-  service does not need the generic `StemSeparation` window loop.
-- On completion, trigger the 8-channel `AnalyzerWaveform` for the cache (not
-  for each exported file).
-- Files: `src/stems/`, `src/coreservices.*`, `src/analyzer/`.
+- `StemService` is owned by `CoreServices`, runs at `QThread::LowPriority`,
+  persists jobs in `stem_queue`, resumes them at startup and supports pause,
+  resume and cancel.
+- Per-track statuses are `NotSeparated`, `Queued`, `Separating%`, `Ready`,
+  `MissingStemFile` and `Failed`; `statusForTrack()` falls back to the
+  `stem_set` index after a restart.
+- Free-space preflight and the format/bitrate settings are shared with the
+  export path.
+- The 8-channel `AnalyzerWaveform` trigger is **blocked on ADR-002**: there is
+  no cache file to analyze until the cache writer exists. Wire it there, not to
+  the exported four-file set.
 
 ### D. Backend follow-ups
 

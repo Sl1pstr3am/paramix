@@ -1,6 +1,7 @@
 #include "library/trackcollection.h"
 
 #include "library/basetrackcache.h"
+#include "library/dao/stemqueuedao.h"
 #include "library/dao/stemsetdao.h"
 #include "library/trackset/crate/crate.h"
 #include "moc_trackcollection.cpp"
@@ -409,6 +410,7 @@ bool TrackCollection::purgeTracks(
     m_playlistDao.removeTracksFromPlaylists(trackIds, true);
     m_analysisDao.deleteAnalyses(trackIds);
     StemSetDao::deleteForTracks(m_database, trackIds);
+    StemQueueDao::deleteForTracks(m_database, trackIds);
 
     // Post-processing
     // TODO(XXX): Move signals from TrackDAO to TrackCollection
