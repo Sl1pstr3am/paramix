@@ -3,6 +3,7 @@
 #include <QCheckBox>
 #include <QDialogButtonBox>
 #include <QDir>
+#include <QFile>
 #include <QFileDialog>
 #include <QHash>
 #include <QInputDialog>
@@ -588,7 +589,10 @@ void WTrackMenu::createActions() {
                 &WTrackMenu::slotReanalyzeWithVariableTempo);
     }
 
-    if (featureIsEnabled(Feature::StemExport) && mixxx::stems::StemService::isCreated() &&
+    // The service is created during CoreServices::initialize(), which may run
+    // after this menu object. Only the compile-time capability is checked here;
+    // slotStemExport() reports it if separation is unavailable at click time.
+    if (featureIsEnabled(Feature::StemExport) &&
             mixxx::stems::isDemucsOnnxAvailable()) {
         m_pStemExportAction = make_parented<QAction>(tr("Save Stems As..."), this);
         connect(m_pStemExportAction,
@@ -1829,6 +1833,9 @@ void WTrackMenu::slotReanalyzeWithVariableTempo() {
 void WTrackMenu::slotStemExport() {
     auto* pService = mixxx::stems::StemService::instance();
     if (pService == nullptr) {
+        QMessageBox::information(this,
+                tr("Save Stems As..."),
+                tr("Stem separation is not available in this session."));
         return;
     }
     TrackPointerList tracks;
@@ -3142,6 +3149,8 @@ bool WTrackMenu::featureIsEnabled(Feature flag) const {
     case Feature::FileBrowser:
         return true;
     case Feature::FindOnWeb:
+        return true;
+    case Feature::StemExport:
         return true;
     case Feature::Properties:
         return m_pTrackModel->hasCapabilities(TrackModel::Capability::Properties);
