@@ -91,15 +91,22 @@ is a separate, user-facing artifact.
 - Schema revision 41 adds the `stem_set` index table
   (`src/library/dao/stemsetdao.{h,cpp}`); the row is written after the set is
   renamed into place.
-- The library track context menu has "Save Stems As...", which asks for a
-  folder and a set name (the default is made unique) and hands the job to
-  `StemService`. Selecting several tracks queues one set per track and derives
-  unique names from the titles.
+- The library track context menu has **Generate Stems** (queues a set in the
+  configured folder) and **Remove Stems**. Selecting several tracks generates
+  one set per track.
 - `StemService` separates on a low-priority background thread, applies the
   shared scalar limiter, then calls `writeStemSet()` with the Settings -> Stems
-  format. It reports progress and failure per track, persists the queue in
-  schema revision 42 (`stem_queue`) and resumes pending jobs at startup.
-- Settings -> Stems binds the format, the AAC bitrate and the model path.
+  format. Progress and failures appear in an inline status bar at the bottom of
+  the main window, with a cancel button, instead of a modal dialog.
+- The service also writes the ADR-002 playback cache:
+  `<settings>/StemCache/<track_id>/stems.flac`, one 8-channel FLAC
+  (drums/bass/other/vocals) at the source rate and frame count.
+  `SoundSourceProxy` prefers it for deck and waveform readers, sets the track's
+  stem labels/colors, and the service re-runs waveform analysis so the four
+  stem lanes are populated. Samplers and preview decks still read the original
+  stereo file.
+- Settings -> Stems binds the format, the AAC bitrate, the model path and the
+  default stem files folder.
 
 ## Not yet wired
 
@@ -109,8 +116,11 @@ is a separate, user-facing artifact.
   jobs across restarts, resumes them at startup, and can pause, resume and
   cancel, but ADR-002's 8-channel cache does not exist yet, so there is nothing
   for `AnalyzerWaveform` to analyze. The hook belongs with the cache writer.
-- A queue UI. Statuses are exposed through `StemService::trackStatusChanged`
-  and `statusForTrack()`; no library column or badge uses them yet.
+- A stems status column in the library. `StemService::trackStatusChanged` and
+  `statusForTrack()` expose the state, but no model column displays it yet.
+- Cache invalidation and generation directories. The cache is keyed only by
+  track id today; a changed source file or a new model overwrites it on the
+  next run rather than taking a new generation.
 - Resampling: separation requires 44.1 kHz input for now.
 - The service holds the decoded stereo track and the eight-channel output in
   memory, about 1 GB for a ten-minute track. The cache/writer path should stream

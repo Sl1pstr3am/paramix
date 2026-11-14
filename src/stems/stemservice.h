@@ -61,6 +61,10 @@ class StemService : public QThread, public Singleton<StemService> {
     /// called on the main thread, because it resolves tracks by id.
     void restoreQueuedJobs(TrackCollectionManager* pTrackCollectionManager);
 
+    /// Deletes the exported sets recorded for a track and forgets them. Only
+    /// directories that contain a `stem-set.json` are removed.
+    void removeStems(TrackId trackId);
+
     /// Stops dequeuing new jobs. A running job pauses at its next block.
     void pause();
     void resume();
@@ -83,6 +87,10 @@ class StemService : public QThread, public Singleton<StemService> {
             mixxx::stems::StemService::Status status,
             int progress,
             const QString& message);
+
+    /// The 8-channel playback cache for a track is ready, so waveform analysis
+    /// can now produce the per-stem data.
+    void stemsReady(TrackId trackId);
 
   protected:
     void run() override;

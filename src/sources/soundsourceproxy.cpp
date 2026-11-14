@@ -41,12 +41,13 @@
 #endif
 
 #include "library/coverartutils.h"
+#include "stems/stemcache.h"
 #include "track/globaltrackcache.h"
 #include "track/track.h"
 #include "util/logger.h"
 #include "util/regex.h"
 
-//Static memory allocation
+// Static memory allocation
 /*static*/ mixxx::SoundSourceProviderRegistry SoundSourceProxy::s_soundSourceProviders;
 /*static*/ QStringList SoundSourceProxy::s_supportedFileNamePatterns;
 /*static*/ QRegularExpression SoundSourceProxy::s_supportedFileNamesRegex;
@@ -322,13 +323,13 @@ bool SoundSourceProxy::isFileSuffixSupported(const QString& fileSuffix) {
     return getSupportedFileSuffixes().contains(fileSuffix);
 }
 
-//static
+// static
 mixxx::SoundSourceProviderPointer SoundSourceProxy::getPrimaryProviderForFileType(
         const QString& fileType) {
     return s_soundSourceProviders.getPrimaryProviderForFileType(fileType);
 }
 
-//static
+// static
 QStringList SoundSourceProxy::getFileSuffixesForFileType(
         const QString& fileType) {
     // Each file type is a valid file suffix
@@ -344,7 +345,7 @@ QStringList SoundSourceProxy::getFileSuffixesForFileType(
     return fileSuffixes;
 }
 
-//static
+// static
 QStringList SoundSourceProxy::getSupportedFileSuffixes() {
     const auto fileTypes = getSupportedFileTypes();
     QStringList fileSuffixes;
@@ -384,7 +385,7 @@ SoundSourceProxy::allProviderRegistrationsForUrl(
     return providerRegistrations;
 }
 
-//static
+// static
 ExportTrackMetadataResult
 SoundSourceProxy::exportTrackMetadataBeforeSaving(
         Track* pTrack,
@@ -558,7 +559,7 @@ importTrackMetadataAndCoverImageUnavailable() {
 
 } // anonymous namespace
 
-//static
+// static
 std::pair<mixxx::MetadataSource::ImportResult, QDateTime>
 SoundSourceProxy::importTrackMetadataAndCoverImageFromFile(
         const mixxx::FileAccess& trackFileAccess,
@@ -952,6 +953,25 @@ mixxx::AudioSourcePointer SoundSourceProxy::openAudioSource(
     VERIFY_OR_DEBUG_ASSERT(m_pTrack) {
         return nullptr;
     }
+#ifdef __STEM__
+    // Prefer the generated 8-channel cache for deck and waveform readers. A
+    // stereo or mono request (samplers, preview decks, the beat/key analyzers)
+    // still reads the original file instead.
+    const auto requestedChannelCount = params.getSignalInfo().getChannelCount();
+    if (mixxx::stems::StemCache::hasCache(m_pTrack->getId()) &&
+            (!requestedChannelCount.isValid() ||
+                    requestedChannelCount == mixxx::audio::ChannelCount::stem())) {
+        auto pCacheSource = std::make_shared<mixxx::SoundSourceFLAC>(
+                QUrl::fromLocalFile(mixxx::stems::StemCache::cacheFilePath(
+                        m_pTrack->getId())));
+        if (pCacheSource->open(mixxx::SoundSource::OpenMode::Strict, params) ==
+                mixxx::SoundSource::OpenResult::Succeeded) {
+            m_pTrack->setStemInfo(mixxx::stems::StemCache::stemInfo());
+            return pCacheSource;
+        }
+        pCacheSource->close();
+    }
+#endif
     if (!openSoundSource(params)) {
         return nullptr;
     }

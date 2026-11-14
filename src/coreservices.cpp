@@ -52,6 +52,7 @@
 #endif
 #include "soundio/soundmanager.h"
 #include "sources/soundsourceproxy.h"
+#include "stems/stemcache.h"
 #include "stems/stemservice.h"
 #include "util/clipboard.h"
 #include "util/db/dbconnectionpooled.h"
@@ -583,8 +584,22 @@ void CoreServices::initialize() {
             m_pPlayerManager.get(),
             m_pRecordingManager.get());
 
-    mixxx::stems::StemService::createInstance(pConfig, m_pDbConnectionPool)
-            ->restoreQueuedJobs(m_pTrackCollectionManager.get());
+    mixxx::stems::StemCache::initialize(pConfig);
+    auto* pStemService = mixxx::stems::StemService::createInstance(
+            pConfig, m_pDbConnectionPool);
+    pStemService->restoreQueuedJobs(m_pTrackCollectionManager.get());
+    connect(pStemService,
+            &mixxx::stems::StemService::stemsReady,
+            this,
+            [this](TrackId trackId) {
+                // Existing stereo waveform data would satisfy the version
+                // check, so drop it before re-analyzing the 8-channel cache.
+                m_pTrackCollectionManager->internalCollection()
+                        ->getAnalysisDAO()
+                        .deleteAnalysesForTrack(trackId);
+                QList<AnalyzerScheduledTrack> tracks{AnalyzerScheduledTrack(trackId)};
+                m_pLibrary->scheduleAnalysis(tracks);
+            });
 
     OverviewCache* pOverviewCache = OverviewCache::createInstance(pConfig, m_pDbConnectionPool);
     connect(&(m_pTrackCollectionManager->internalCollection()->getTrackDAO()),

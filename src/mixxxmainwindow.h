@@ -15,6 +15,11 @@ class DlgPreferences;
 class DlgKeywheel;
 class GuiTick;
 class LaunchImage;
+class QLabel;
+class QProgressBar;
+class QPushButton;
+class QStatusBar;
+class QTimer;
 class VisualsManager;
 class WMainMenuBar;
 struct LibraryScanResultSummary;
@@ -54,7 +59,9 @@ class MixxxMainWindow : public QMainWindow {
     void setInhibitScreensaver(mixxx::preferences::ScreenSaver inhibit);
     mixxx::preferences::ScreenSaver getInhibitScreensaver();
 
-    inline GuiTick* getGuiTick() { return m_pGuiTick; };
+    inline GuiTick* getGuiTick() {
+        return m_pGuiTick;
+    };
 
   public slots:
     void rebootMixxxView();
@@ -101,12 +108,15 @@ class MixxxMainWindow : public QMainWindow {
 
   protected:
     /// Event filter to block certain events (eg. tooltips if tooltips are disabled)
-    bool eventFilter(QObject *obj, QEvent *event) override;
-    void closeEvent(QCloseEvent *event) override;
+    bool eventFilter(QObject* obj, QEvent* event) override;
+    void closeEvent(QCloseEvent* event) override;
+    void resizeEvent(QResizeEvent* event) override;
 
   private:
     void initializeWindow();
     void checkDirectRendering();
+    void setupStemStatusBar();
+    void updateStemStatusBarGeometry();
 
     /// Load skin to a QWidget that we set as the central widget.
     bool loadConfiguredSkin();
@@ -118,7 +128,7 @@ class MixxxMainWindow : public QMainWindow {
 #endif
 
     QDialog::DialogCode soundDeviceErrorDlg(
-            const QString &title, const QString &text, bool* retryClicked);
+            const QString& title, const QString& text, bool* retryClicked);
     QDialog::DialogCode soundDeviceBusyDlg(bool* retryClicked);
     QDialog::DialogCode soundDeviceErrorMsgDlg(
             SoundDeviceStatus status, bool* retryClicked);
@@ -128,6 +138,12 @@ class MixxxMainWindow : public QMainWindow {
 
     QWidget* m_pCentralWidget;
     LaunchImage* m_pLaunchImage;
+    QWidget* m_pStemStatusBar = nullptr;
+    QLabel* m_pStemStatusLabel = nullptr;
+    QProgressBar* m_pStemProgress = nullptr;
+    QPushButton* m_pStemCancelButton = nullptr;
+    QTimer* m_pStemStatusTimer = nullptr;
+    bool m_stemStatusConnected = false;
 #ifndef __APPLE__
     Qt::WindowStates m_prevState;
 #endif

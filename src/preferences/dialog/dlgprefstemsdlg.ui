@@ -87,6 +87,27 @@
         </property>
        </widget>
       </item>
+      <item row="3" column="0">
+       <widget class="QLabel" name="labelOutputDirectory">
+        <property name="text">
+         <string>Stem files folder</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="1">
+       <widget class="QLineEdit" name="lineEditOutputDirectory">
+        <property name="toolTip">
+         <string>Default folder for "Generate Stems" and the stem file browser.</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="2">
+       <widget class="QPushButton" name="pushButtonBrowseOutput">
+        <property name="text">
+         <string>Browse...</string>
+        </property>
+       </widget>
+      </item>
      </layout>
     </widget>
    </item>

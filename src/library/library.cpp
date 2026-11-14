@@ -311,6 +311,10 @@ TrackAnalysisScheduler::Pointer Library::createTrackAnalysisScheduler(
             modeFlags);
 }
 
+void Library::scheduleAnalysis(const QList<AnalyzerScheduledTrack>& tracks) {
+    emit analyzeTracks(tracks);
+}
+
 void Library::stopPendingTasks() {
     if (m_pAnalysisFeature) {
         m_pAnalysisFeature->stopAnalysis();

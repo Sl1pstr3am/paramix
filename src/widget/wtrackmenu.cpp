@@ -4,15 +4,11 @@
 #include <QDialogButtonBox>
 #include <QDir>
 #include <QFile>
-#include <QFileDialog>
-#include <QHash>
 #include <QInputDialog>
 #include <QList>
 #include <QListWidget>
 #include <QMessageBox>
 #include <QModelIndex>
-#include <QProgressDialog>
-#include <QSet>
 #include <QVBoxLayout>
 
 #include "analyzer/analyzerscheduledtrack.h"
@@ -591,14 +587,20 @@ void WTrackMenu::createActions() {
 
     // The service is created during CoreServices::initialize(), which may run
     // after this menu object. Only the compile-time capability is checked here;
-    // slotStemExport() reports it if separation is unavailable at click time.
+    // the slots report it if separation is unavailable at click time.
     if (featureIsEnabled(Feature::StemExport) &&
             mixxx::stems::isDemucsOnnxAvailable()) {
-        m_pStemExportAction = make_parented<QAction>(tr("Save Stems As..."), this);
-        connect(m_pStemExportAction,
+        m_pGenerateStemsAction = make_parented<QAction>(tr("Generate Stems"), this);
+        connect(m_pGenerateStemsAction,
                 &QAction::triggered,
                 this,
-                &WTrackMenu::slotStemExport);
+                &WTrackMenu::slotGenerateStems);
+
+        m_pRemoveStemsAction = make_parented<QAction>(tr("Remove Stems"), this);
+        connect(m_pRemoveStemsAction,
+                &QAction::triggered,
+                this,
+                &WTrackMenu::slotRemoveStems);
     }
 
     // This action is only usable when m_deckGroup is set. That is true only
@@ -777,8 +779,9 @@ void WTrackMenu::setupActions() {
         addMenu(m_pAnalyzeMenu);
     }
 
-    if (m_pStemExportAction) {
-        addAction(m_pStemExportAction);
+    if (m_pGenerateStemsAction) {
+        addAction(m_pGenerateStemsAction);
+        addAction(m_pRemoveStemsAction);
     }
 
     // This action is created only for menus instantiated by deck widgets (e.g.
@@ -1198,6 +1201,15 @@ void WTrackMenu::updateMenus() {
     // Disable it if no deck group was set.
     if (m_pUpdateReplayGainAct) {
         m_pUpdateReplayGainAct->setEnabled(!m_deckGroup.isEmpty());
+    }
+
+    if (m_pRemoveStemsAction) {
+        auto* pStemService = mixxx::stems::StemService::instance();
+        const auto status = pStemService
+                ? pStemService->statusForTrack(pTrack->getId())
+                : mixxx::stems::StemService::Status::NotSeparated;
+        m_pRemoveStemsAction->setEnabled(status == mixxx::stems::StemService::Status::Ready ||
+                status == mixxx::stems::StemService::Status::MissingStemFile);
     }
 
     if (m_pTranslateBeatsHalf) {
@@ -1830,12 +1842,24 @@ void WTrackMenu::slotReanalyzeWithVariableTempo() {
     addToAnalysis(options);
 }
 
-void WTrackMenu::slotStemExport() {
+void WTrackMenu::slotGenerateStems() {
     auto* pService = mixxx::stems::StemService::instance();
     if (pService == nullptr) {
-        QMessageBox::information(this,
-                tr("Save Stems As..."),
-                tr("Stem separation is not available in this session."));
+        return;
+    }
+    for (const auto& pTrack : getTrackPointers()) {
+        if (!pTrack) {
+            continue;
+        }
+        mixxx::stems::StemExportRequest request;
+        request.track = pTrack;
+        pService->queueExport(request);
+    }
+}
+
+void WTrackMenu::slotRemoveStems() {
+    auto* pService = mixxx::stems::StemService::instance();
+    if (pService == nullptr) {
         return;
     }
     TrackPointerList tracks;
@@ -1847,151 +1871,20 @@ void WTrackMenu::slotStemExport() {
     if (tracks.isEmpty()) {
         return;
     }
-
-    const QString defaultDirectory = m_pConfig->getValue(
-            ConfigKey("[Stems]", "OutputDirectory"),
-            QDir(m_pConfig->getSettingsPath()).filePath(QStringLiteral("Stems")));
-    const QString directory = QFileDialog::getExistingDirectory(this,
-            tr("Save Stems As..."),
-            defaultDirectory);
-    if (directory.isEmpty()) {
+    const auto answer = QMessageBox::question(this,
+            tr("Remove Stems"),
+            tracks.size() == 1
+                    ? tr("Delete the exported stem sets for \"%1\"?")
+                              .arg(tracks.first()->getTitle())
+                    : tr("Delete the exported stem sets for %1 tracks?")
+                              .arg(tracks.size()),
+            QMessageBox::Yes | QMessageBox::No,
+            QMessageBox::No);
+    if (answer != QMessageBox::Yes) {
         return;
     }
-
-    QString singleSetName;
-    if (tracks.size() == 1) {
-        const QString title = tracks.first()->getTitle().trimmed();
-        bool accepted = false;
-        singleSetName = QInputDialog::getText(this,
-                tr("Save Stems As..."),
-                tr("Stem set name:"),
-                QLineEdit::Normal,
-                mixxx::stems::uniqueStemSetName(directory,
-                        title.isEmpty() ? QStringLiteral("stems") : title),
-                &accepted);
-        if (!accepted || singleSetName.trimmed().isEmpty()) {
-            return;
-        }
-    }
-
-    QList<TrackId> queuedTracks;
-    QSet<QString> usedNames;
     for (const auto& pTrack : std::as_const(tracks)) {
-        const QString title = pTrack->getTitle().trimmed();
-        QString setName = tracks.size() == 1
-                ? singleSetName
-                : mixxx::stems::uniqueStemSetName(directory,
-                          title.isEmpty() ? QStringLiteral("stems") : title);
-        for (int suffix = 2; usedNames.contains(setName); ++suffix) {
-            setName = QStringLiteral("%1 (%2)")
-                              .arg(mixxx::stems::sanitizeStemSetName(
-                                      title.isEmpty() ? QStringLiteral("stems")
-                                                      : title))
-                              .arg(suffix);
-        }
-        usedNames.insert(setName);
-
-        mixxx::stems::StemExportRequest request;
-        request.track = pTrack;
-        request.outputDirectory = directory;
-        request.setName = setName;
-        if (pService->queueExport(request)) {
-            queuedTracks.append(pTrack->getId());
-        }
-    }
-    if (queuedTracks.isEmpty()) {
-        QMessageBox::information(this,
-                tr("Save Stems As..."),
-                tr("These tracks are already queued for stem separation."));
-        return;
-    }
-
-    QProgressDialog progress(tr("Separating stems..."),
-            tr("Cancel"),
-            0,
-            100,
-            this);
-    progress.setWindowModality(Qt::WindowModal);
-    progress.setMinimumDuration(0);
-    progress.setAutoClose(false);
-    progress.setAutoReset(false);
-
-    QSet<TrackId> wanted;
-    for (const auto& trackId : std::as_const(queuedTracks)) {
-        wanted.insert(trackId);
-    }
-    const int totalTracks = static_cast<int>(wanted.size());
-    QHash<TrackId, int> percentages;
-    QSet<TrackId> reported;
-    QStringList failures;
-    int finished = 0;
-    auto handleStatus = [&](TrackId trackId,
-                                mixxx::stems::StemService::Status status,
-                                int percentage,
-                                const QString& statusMessage) {
-        if (!wanted.contains(trackId)) {
-            return;
-        }
-        const bool terminal =
-                status == mixxx::stems::StemService::Status::Ready ||
-                status == mixxx::stems::StemService::Status::Failed ||
-                status == mixxx::stems::StemService::Status::NotSeparated;
-        if (terminal && reported.contains(trackId)) {
-            return;
-        }
-        percentages.insert(trackId, terminal ? 100 : percentage);
-        if (terminal) {
-            reported.insert(trackId);
-            ++finished;
-            if (status == mixxx::stems::StemService::Status::Failed) {
-                failures.append(statusMessage);
-            }
-        }
-        int totalPercentage = 0;
-        for (auto it = percentages.constBegin(); it != percentages.constEnd(); ++it) {
-            totalPercentage += it.value();
-        }
-        progress.setLabelText(tr("Separating stems (%1 of %2)...")
-                        .arg(std::min(finished + 1, totalTracks))
-                        .arg(totalTracks));
-        progress.setValue(totalPercentage / std::max(1, totalTracks));
-        if (finished >= totalTracks) {
-            progress.close();
-        }
-    };
-    const auto connection =
-            connect(pService,
-                    &mixxx::stems::StemService::trackStatusChanged,
-                    this,
-                    handleStatus);
-    // A job can finish before the connection above exists, in which case its
-    // terminal signal is gone. Pick up that state once.
-    for (const auto& trackId : std::as_const(queuedTracks)) {
-        const mixxx::stems::StemService::Status status = pService->statusForTrack(trackId);
-        if (status == mixxx::stems::StemService::Status::Ready ||
-                status == mixxx::stems::StemService::Status::Failed ||
-                status == mixxx::stems::StemService::Status::NotSeparated) {
-            handleStatus(trackId,
-                    status,
-                    status == mixxx::stems::StemService::Status::Ready ? 100 : 0,
-                    pService->lastMessageForTrack(trackId));
-        }
-    }
-    connect(&progress, &QProgressDialog::canceled, pService, &mixxx::stems::StemService::cancelAll);
-    if (finished < totalTracks) {
-        progress.exec();
-    }
-    disconnect(connection);
-
-    if (!failures.isEmpty()) {
-        QMessageBox::warning(this,
-                tr("Save Stems As..."),
-                tr("Some stem sets could not be written:\n\n%1")
-                        .arg(failures.join(QLatin1Char('\n'))));
-    } else if (finished >= totalTracks) {
-        QMessageBox::information(this,
-                tr("Save Stems As..."),
-                tr("Stems were saved to %1.").arg(directory));
+        pService->removeStems(pTrack->getId());
     }
 }
 

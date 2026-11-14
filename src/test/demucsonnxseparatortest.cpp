@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
+#include <sndfile.h>
 
+#include <algorithm>
 #include <cmath>
 #include <cstdlib>
 #include <string>
@@ -75,6 +77,72 @@ TEST_F(DemucsOnnxSeparatorTest, RejectsUnknownDevice) {
     std::string error;
     EXPECT_EQ(nullptr, createDemucsOnnxSeparator(config, &error));
     EXPECT_FALSE(error.empty());
+}
+
+TEST_F(DemucsOnnxSeparatorTest, CoversWholeRealAudioFile) {
+    const char* audioPath = std::getenv("PARAMIX_TEST_AUDIO_FILE");
+    if (audioPath == nullptr) {
+        GTEST_SKIP() << "set PARAMIX_TEST_AUDIO_FILE";
+    }
+    if (!isDemucsOnnxAvailable()) {
+        GTEST_SKIP() << "ONNX Runtime is not available";
+    }
+    SF_INFO info{};
+    SNDFILE* pFile = sf_open(audioPath, SFM_READ, &info);
+    ASSERT_NE(nullptr, pFile) << sf_strerror(nullptr);
+    ASSERT_EQ(2, info.channels);
+    ASSERT_EQ(44100, info.samplerate);
+    const SINT frames = static_cast<SINT>(info.frames);
+    ASSERT_GT(frames, 0);
+    std::vector<float> interleaved(static_cast<std::size_t>(frames) * 2);
+    ASSERT_EQ(static_cast<sf_count_t>(frames),
+            sf_readf_float(pFile, interleaved.data(), frames));
+    ASSERT_EQ(0, sf_close(pFile));
+
+    std::vector<float> planar(static_cast<std::size_t>(frames) * 2);
+    for (SINT i = 0; i < frames; ++i) {
+        planar[i] = interleaved[static_cast<std::size_t>(i) * 2];
+        planar[frames + i] = interleaved[static_cast<std::size_t>(i) * 2 + 1];
+    }
+
+    auto pSeparator = createTestSeparator();
+    ASSERT_NE(nullptr, pSeparator);
+    std::vector<CSAMPLE> stems(
+            static_cast<std::size_t>(frames) * kOutputChannels, 0.0f);
+    SINT coveredEnd = 0;
+    SINT coveredFrames = 0;
+    ASSERT_TRUE(pSeparator->separate(planar.data(),
+            frames,
+            [&](SINT offset, const CSAMPLE* pBuffer, SINT count) {
+                if (offset < 0 || count <= 0 || offset + count > frames) {
+                    return false;
+                }
+                std::copy(pBuffer,
+                        pBuffer + static_cast<std::size_t>(count) * kOutputChannels,
+                        stems.begin() + static_cast<std::size_t>(offset) * kOutputChannels);
+                coveredEnd = std::max(coveredEnd, offset + count);
+                coveredFrames += count;
+                return true;
+            }));
+    EXPECT_EQ(frames, coveredEnd);
+    EXPECT_EQ(frames, coveredFrames);
+
+    for (int stem = 0; stem < 4; ++stem) {
+        SINT lastAudible = 0;
+        for (SINT i = 0; i < frames; ++i) {
+            CSAMPLE peak = 0.0f;
+            for (int channel = 0; channel < 2; ++channel) {
+                peak = std::max(peak,
+                        std::abs(stems[static_cast<std::size_t>(i) * kOutputChannels +
+                                stem * 2 + channel]));
+            }
+            if (peak > 1e-4f) {
+                lastAudible = i;
+            }
+        }
+        EXPECT_GT(static_cast<double>(lastAudible) / 44100.0, 150.0)
+                << "stem " << stem << " ends early";
+    }
 }
 
 TEST_F(DemucsOnnxSeparatorTest, SeparatesTinyModelAndReportsProgress) {
