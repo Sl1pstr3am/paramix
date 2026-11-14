@@ -2,10 +2,14 @@
 
 #include <QCheckBox>
 #include <QDialogButtonBox>
+#include <QDir>
+#include <QFileDialog>
 #include <QInputDialog>
 #include <QList>
 #include <QListWidget>
+#include <QMessageBox>
 #include <QModelIndex>
+#include <QProgressDialog>
 #include <QVBoxLayout>
 
 #include "analyzer/analyzerscheduledtrack.h"
@@ -35,6 +39,9 @@
 #include "preferences/configobject.h"
 #include "preferences/dialog/dlgprefdeck.h"
 #include "sources/soundsourceproxy.h"
+#include "stems/demucsonnxseparator.h"
+#include "stems/stemfilewriter.h"
+#include "stems/stemservice.h"
 #include "track/track.h"
 #include "util/defs.h"
 #include "util/desktophelper.h"
@@ -494,7 +501,7 @@ void WTrackMenu::createActions() {
         connect(m_pBpmLockAction, &QAction::triggered, this, &WTrackMenu::slotLockBpm);
         connect(m_pBpmUnlockAction, &QAction::triggered, this, &WTrackMenu::slotUnlockBpm);
 
-        //BPM edit actions
+        // BPM edit actions
         m_pBpmHalveAction = make_parented<QAction>(tr("Halve BPM"), m_pBPMMenu);
         storeActionTextAndScaleInProperties(m_pBpmHalveAction, 0.5);
         m_pBpmTwoThirdsAction = make_parented<QAction>(tr("2/3 BPM"), m_pBPMMenu);
@@ -577,6 +584,15 @@ void WTrackMenu::createActions() {
                 &QAction::triggered,
                 this,
                 &WTrackMenu::slotReanalyzeWithVariableTempo);
+    }
+
+    if (featureIsEnabled(Feature::StemExport) && mixxx::stems::StemService::isCreated() &&
+            mixxx::stems::isDemucsOnnxAvailable()) {
+        m_pStemExportAction = make_parented<QAction>(tr("Save Stems As..."), this);
+        connect(m_pStemExportAction,
+                &QAction::triggered,
+                this,
+                &WTrackMenu::slotStemExport);
     }
 
     // This action is only usable when m_deckGroup is set. That is true only
@@ -753,6 +769,10 @@ void WTrackMenu::setupActions() {
         m_pAnalyzeMenu->addAction(m_pReanalyzeConstBpmAction);
         m_pAnalyzeMenu->addAction(m_pReanalyzeVarBpmAction);
         addMenu(m_pAnalyzeMenu);
+    }
+
+    if (m_pStemExportAction) {
+        addAction(m_pStemExportAction);
     }
 
     // This action is created only for menus instantiated by deck widgets (e.g.
@@ -1804,6 +1824,105 @@ void WTrackMenu::slotReanalyzeWithVariableTempo() {
     addToAnalysis(options);
 }
 
+void WTrackMenu::slotStemExport() {
+    auto* pService = mixxx::stems::StemService::instance();
+    if (pService == nullptr) {
+        return;
+    }
+    const TrackPointerList tracks = getTrackPointers();
+    if (tracks.size() != 1 || !tracks.first()) {
+        QMessageBox::information(this,
+                tr("Save Stems As..."),
+                tr("Select a single track to export stems."));
+        return;
+    }
+    const TrackPointer pTrack = tracks.first();
+
+    const QString defaultDirectory = m_pConfig->getValue(
+            ConfigKey("[Stems]", "OutputDirectory"),
+            QDir(m_pConfig->getSettingsPath()).filePath(QStringLiteral("Stems")));
+    const QString directory = QFileDialog::getExistingDirectory(this,
+            tr("Save Stems As..."),
+            defaultDirectory);
+    if (directory.isEmpty()) {
+        return;
+    }
+
+    const QString suggestedName = mixxx::stems::uniqueStemSetName(
+            directory,
+            pTrack->getTitle().trimmed().isEmpty() ? QStringLiteral("stems")
+                                                   : pTrack->getTitle());
+    bool accepted = false;
+    const QString setName = QInputDialog::getText(this,
+            tr("Save Stems As..."),
+            tr("Stem set name:"),
+            QLineEdit::Normal,
+            suggestedName,
+            &accepted);
+    if (!accepted || setName.trimmed().isEmpty()) {
+        return;
+    }
+
+    mixxx::stems::StemExportRequest request;
+    request.track = pTrack;
+    request.outputDirectory = directory;
+    request.setName = setName;
+    if (!pService->queueExport(request)) {
+        QMessageBox::information(this,
+                tr("Save Stems As..."),
+                tr("This track is already queued for stem separation."));
+        return;
+    }
+
+    const TrackId trackId = pTrack->getId();
+    QProgressDialog progress(tr("Separating stems for %1...").arg(pTrack->getTitle()),
+            tr("Cancel"),
+            0,
+            100,
+            this);
+    progress.setWindowModality(Qt::WindowModal);
+    progress.setMinimumDuration(0);
+    progress.setAutoClose(false);
+    progress.setAutoReset(false);
+
+    QString message;
+    const auto connection = connect(pService,
+            &mixxx::stems::StemService::trackStatusChanged,
+            this,
+            [&progress, &message, trackId](TrackId changedTrackId,
+                    mixxx::stems::StemService::Status status,
+                    int percentage,
+                    const QString& statusMessage) {
+                if (changedTrackId != trackId) {
+                    return;
+                }
+                progress.setValue(percentage);
+                switch (status) {
+                case mixxx::stems::StemService::Status::Ready:
+                    message = tr("Stems were saved.");
+                    progress.close();
+                    break;
+                case mixxx::stems::StemService::Status::Failed:
+                    message = statusMessage;
+                    progress.close();
+                    break;
+                case mixxx::stems::StemService::Status::NotSeparated:
+                    message = statusMessage.isEmpty() ? tr("Canceled.") : statusMessage;
+                    progress.close();
+                    break;
+                default:
+                    break;
+                }
+            });
+    connect(&progress, &QProgressDialog::canceled, pService, &mixxx::stems::StemService::cancelAll);
+    progress.exec();
+    disconnect(connection);
+
+    if (!message.isEmpty()) {
+        QMessageBox::information(this, tr("Save Stems As..."), message);
+    }
+}
+
 void WTrackMenu::slotLockBpm() {
     lockBpm(true);
 }
@@ -2038,7 +2157,7 @@ class ResetPlayCounterTrackPointerOperation : public mixxx::TrackPointerOperatio
 
 } // anonymous namespace
 
-//slot for reset played count, sets count to 0 of one or more tracks
+// slot for reset played count, sets count to 0 of one or more tracks
 void WTrackMenu::slotClearPlayCount() {
     const auto progressLabelText =
             tr("Resetting play count of %n track(s)", "", getTrackCount());
@@ -2087,7 +2206,7 @@ class ResetRatingTrackPointerOperation : public mixxx::TrackPointerOperation {
 
 } // anonymous namespace
 
-//slot for reset played count, sets count to 0 of one or more tracks
+// slot for reset played count, sets count to 0 of one or more tracks
 void WTrackMenu::slotClearRating() {
     const auto progressLabelText =
             tr("Clearing rating of %n track(s)", "", getTrackCount());
@@ -2110,7 +2229,7 @@ class ClearCommentTrackPointerOperation : public mixxx::TrackPointerOperation {
 
 } // anonymous namespace
 
-//slot for clearing the comment field of one or more tracks
+// slot for clearing the comment field of one or more tracks
 void WTrackMenu::slotClearComment() {
     const auto progressLabelText =
             tr("Clearing comment of %n track(s)", "", getTrackCount());

@@ -277,6 +277,21 @@ QString sanitizeStemSetName(const QString& name) {
     return result;
 }
 
+QString uniqueStemSetName(const QString& outputDirectory, const QString& baseName) {
+    const QString sanitized = sanitizeStemSetName(baseName);
+    QDir outputDir(outputDirectory);
+    if (!outputDir.exists(sanitized)) {
+        return sanitized;
+    }
+    for (int suffix = 2; suffix < 10000; ++suffix) {
+        const QString candidate = QStringLiteral("%1 (%2)").arg(sanitized).arg(suffix);
+        if (!outputDir.exists(candidate)) {
+            return candidate;
+        }
+    }
+    return sanitized;
+}
+
 bool writeStemSet(const QString& outputDirectory,
         const StemSetInfo& info,
         const CSAMPLE* pInterleavedStems,

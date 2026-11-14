@@ -1,6 +1,7 @@
 #include "library/trackcollection.h"
 
 #include "library/basetrackcache.h"
+#include "library/dao/stemsetdao.h"
 #include "library/trackset/crate/crate.h"
 #include "moc_trackcollection.cpp"
 #include "track/globaltrackcache.h"
@@ -20,8 +21,7 @@ TrackCollection::TrackCollection(
         const UserSettingsPointer& pConfig)
         : QObject(parent),
           m_analysisDao(pConfig),
-          m_trackDao(m_cueDao, m_playlistDao,
-                     m_analysisDao, m_libraryHashDao, pConfig) {
+          m_trackDao(m_cueDao, m_playlistDao, m_analysisDao, m_libraryHashDao, pConfig) {
     // Forward signals from TrackDAO
     connect(&m_trackDao,
             &TrackDAO::trackDirty,
@@ -291,7 +291,7 @@ bool TrackCollection::hideTracks(const QList<TrackId>& trackIds) {
 
     // Warn if tracks have a playlist membership
     QSet<int> allPlaylistIds;
-    for (const auto& trackId: trackIds) {
+    for (const auto& trackId : trackIds) {
         QSet<int> playlistIds;
         m_playlistDao.getPlaylistsTrackIsIn(trackId, &playlistIds);
         for (const auto& playlistId : std::as_const(playlistIds)) {
@@ -302,28 +302,28 @@ bool TrackCollection::hideTracks(const QList<TrackId>& trackIds) {
     }
 
     if (!allPlaylistIds.isEmpty()) {
-         QStringList playlistNames;
-         playlistNames.reserve(allPlaylistIds.count());
-         for (const auto& playlistId: allPlaylistIds) {
-             playlistNames.append(m_playlistDao.getPlaylistName(playlistId));
-         }
+        QStringList playlistNames;
+        playlistNames.reserve(allPlaylistIds.count());
+        for (const auto& playlistId : allPlaylistIds) {
+            playlistNames.append(m_playlistDao.getPlaylistName(playlistId));
+        }
 
-         QString playlistNamesSection =
-                 "\n\n\"" %
-                 playlistNames.join("\"\n\"") %
-                 "\"\n\n";
+        QString playlistNamesSection =
+                "\n\n\"" %
+                playlistNames.join("\"\n\"") %
+                "\"\n\n";
 
-         if (QMessageBox::question(
-                 nullptr,
-                 tr("Hiding tracks"),
-                 tr("The selected tracks are in the following playlists:"
-                     "%1"
-                     "Hiding them will remove them from these playlists. Continue?")
-                         .arg(playlistNamesSection),
-                 QMessageBox::Ok | QMessageBox::Cancel) != QMessageBox::Ok) {
-             return false;
-         }
-     }
+        if (QMessageBox::question(
+                    nullptr,
+                    tr("Hiding tracks"),
+                    tr("The selected tracks are in the following playlists:"
+                       "%1"
+                       "Hiding them will remove them from these playlists. Continue?")
+                            .arg(playlistNamesSection),
+                    QMessageBox::Ok | QMessageBox::Cancel) != QMessageBox::Ok) {
+            return false;
+        }
+    }
 
     // Transactional
     SqlTransaction transaction(m_database);
@@ -408,6 +408,7 @@ bool TrackCollection::purgeTracks(
     m_cueDao.deleteCuesForTracks(trackIds);
     m_playlistDao.removeTracksFromPlaylists(trackIds, true);
     m_analysisDao.deleteAnalyses(trackIds);
+    StemSetDao::deleteForTracks(m_database, trackIds);
 
     // Post-processing
     // TODO(XXX): Move signals from TrackDAO to TrackCollection

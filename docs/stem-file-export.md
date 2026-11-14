@@ -84,13 +84,27 @@ overwritten; the caller chooses a new name.
 The internal playback cache remains the 8-channel FLAC from ADR-002; this export
 is a separate, user-facing artifact.
 
+## Wiring
+
+- Schema revision 41 adds the `stem_set` index table
+  (`src/library/dao/stemsetdao.{h,cpp}`); the row is written after the set is
+  renamed into place.
+- The library track context menu has "Save Stems As...", which asks for a
+  folder and a set name (the default is made unique) and hands the job to
+  `StemService`.
+- `StemService` separates on a low-priority background thread, applies the
+  shared scalar limiter, then calls `writeStemSet()` with the Settings -> Stems
+  format. It reports progress and failure per track.
+- Settings -> Stems binds the format, the AAC bitrate and the model path.
+
 ## Not yet wired
 
-- The schema revision 41 link and the library context action.
-- Exposing the format keys in Settings -> Stems and the queue UI.
 - Direct playback of an exported set (the 8-channel cache is still the playback
   path).
-- Batch export and progress reporting.
+- Batch export, persistent queue resume, pause and cancel UI. The service
+  already pauses, cancels and rejects a track that is queued twice, but the
+  queue is not yet restored after a restart.
+- Resampling: separation requires 44.1 kHz input for now.
 
 ## Licensing
 

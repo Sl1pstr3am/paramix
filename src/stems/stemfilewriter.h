@@ -38,4 +38,8 @@ bool writeStemSet(const QString& outputDirectory,
 /// trailing dots/spaces, and falls back to "stems" when nothing is left.
 QString sanitizeStemSetName(const QString& name);
 
+/// A sanitized set name that does not exist under `outputDirectory` yet, or
+/// `baseName` itself when it is still free. Appends " (2)", " (3)", ...
+QString uniqueStemSetName(const QString& outputDirectory, const QString& baseName);
+
 } // namespace mixxx::stems
