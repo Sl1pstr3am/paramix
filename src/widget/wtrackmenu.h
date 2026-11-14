@@ -84,7 +84,8 @@ class WTrackMenu : public QMenu {
             WTrackMenu::Feature::Properties |
             WTrackMenu::Feature::UpdateReplayGainFromPregain |
             WTrackMenu::Feature::FindOnWeb |
-            WTrackMenu::Feature::SelectInLibrary};
+            WTrackMenu::Feature::SelectInLibrary |
+            WTrackMenu::Feature::StemExport};
 
     WTrackMenu(QWidget* parent,
             UserSettingsPointer pConfig,
