@@ -204,7 +204,17 @@ void BaseTrackTableModel::initTableColumnsAndHeaderProperties(
         setHeaderProperties(static_cast<ColumnCache::Column>(column));
     }
 
-    emit headerDataChanged(Qt::Horizontal, 0, tableColumns.size() - 1);
+    m_stemsColumn = -1;
+    if (isStemsColumnEnabled()) {
+        ColumnHeader header;
+        header.header[TrackModel::kHeaderNameRole] = QStringLiteral("stems");
+        header.header[Qt::DisplayRole] = tr("Stems");
+        header.header[TrackModel::kHeaderWidthRole] = 90;
+        m_stemsColumn = m_columnHeaders.size();
+        m_columnHeaders.append(header);
+    }
+
+    emit headerDataChanged(Qt::Horizontal, 0, m_columnHeaders.size() - 1);
 }
 
 void BaseTrackTableModel::setHeaderProperties(ColumnCache::Column column) {
@@ -446,6 +456,10 @@ QVariant BaseTrackTableModel::data(
         int role) const {
     if (!index.isValid()) {
         return QVariant();
+    }
+
+    if (index.column() == m_stemsColumn) {
+        return stemsStatusValue(index, role);
     }
 
     if (role == Qt::BackgroundRole) {
@@ -1050,7 +1064,8 @@ Qt::ItemFlags BaseTrackTableModel::readWriteFlags(
     }
 
     const int column = index.column();
-    if (column == fieldIndex(ColumnCache::COLUMN_LIBRARYTABLE_BITRATE) ||
+    if (column == m_stemsColumn ||
+            column == fieldIndex(ColumnCache::COLUMN_LIBRARYTABLE_BITRATE) ||
             column == fieldIndex(ColumnCache::COLUMN_LIBRARYTABLE_CHANNELS) ||
             column == fieldIndex(ColumnCache::COLUMN_LIBRARYTABLE_COLOR) ||
             column == fieldIndex(ColumnCache::COLUMN_LIBRARYTABLE_COVERART) ||
@@ -1179,7 +1194,83 @@ void BaseTrackTableModel::slotRefreshAllRows() {
 }
 
 void BaseTrackTableModel::slotTracksRemoved(const QSet<TrackId>& trackIds) {
+    for (const auto& trackId : trackIds) {
+        m_stemStatusCache.remove(trackId);
+    }
     removeTrackRows(trackIds);
+}
+
+void BaseTrackTableModel::ensureStemServiceConnected() const {
+    if (m_stemServiceConnected) {
+        return;
+    }
+    auto* pStemService = mixxx::stems::StemService::instance();
+    if (pStemService == nullptr) {
+        return;
+    }
+    m_stemServiceConnected = true;
+    auto* pThis = const_cast<BaseTrackTableModel*>(this);
+    connect(pStemService, &mixxx::stems::StemService::trackStatusChanged, pThis, [pThis](TrackId trackId, mixxx::stems::StemService::Status, int, const QString&) { pThis->onStemStatusChanged(trackId); }, Qt::QueuedConnection);
+}
+
+void BaseTrackTableModel::onStemStatusChanged(TrackId trackId) {
+    m_stemStatusCache.remove(trackId);
+    if (m_stemsColumn < 0) {
+        return;
+    }
+    const QVector<int> trackRows = getTrackRows(trackId);
+    if (trackRows.isEmpty()) {
+        return;
+    }
+    QList<int> rows;
+    rows.reserve(trackRows.size());
+    for (const int row : trackRows) {
+        rows.append(row);
+    }
+    emitDataChangedForMultipleRowsInColumn(rows,
+            m_stemsColumn,
+            {Qt::DisplayRole, Qt::ToolTipRole, TrackModel::kDataExportRole});
+}
+
+QVariant BaseTrackTableModel::stemsStatusValue(
+        const QModelIndex& index, int role) const {
+    if (role == Qt::SizeHintRole) {
+        return QSize(90, 0);
+    }
+    if (role != Qt::DisplayRole && role != Qt::ToolTipRole &&
+            role != TrackModel::kDataExportRole) {
+        return QVariant();
+    }
+    const TrackId trackId = getTrackId(index);
+    if (!trackId.isValid()) {
+        return QVariant();
+    }
+    ensureStemServiceConnected();
+    mixxx::stems::StemService::Status status;
+    const auto it = m_stemStatusCache.constFind(trackId);
+    if (it != m_stemStatusCache.constEnd()) {
+        status = it.value();
+    } else {
+        auto* pStemService = mixxx::stems::StemService::instance();
+        status = pStemService ? pStemService->statusForTrack(trackId)
+                              : mixxx::stems::StemService::Status::NotSeparated;
+        m_stemStatusCache.insert(trackId, status);
+    }
+    switch (status) {
+    case mixxx::stems::StemService::Status::NotSeparated:
+        return QVariant();
+    case mixxx::stems::StemService::Status::Queued:
+        return tr("Queued");
+    case mixxx::stems::StemService::Status::Separating:
+        return tr("Separating");
+    case mixxx::stems::StemService::Status::Ready:
+        return tr("Ready");
+    case mixxx::stems::StemService::Status::MissingStemFile:
+        return tr("Missing files");
+    case mixxx::stems::StemService::Status::Failed:
+        return tr("Failed");
+    }
+    return QVariant();
 }
 
 void BaseTrackTableModel::emitDataChangedForMultipleRowsInColumn(

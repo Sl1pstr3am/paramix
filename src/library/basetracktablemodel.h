@@ -1,12 +1,14 @@
 #pragma once
 
 #include <QAbstractTableModel>
+#include <QHash>
 #include <QList>
 #include <QPointer>
 #include <optional>
 
 #include "library/columncache.h"
 #include "library/trackmodel.h"
+#include "stems/stemservice.h"
 #include "track/track_decl.h"
 #include "util/color/colorpalette.h"
 #include "util/datetime.h"
@@ -108,6 +110,10 @@ class BaseTrackTableModel : public QAbstractTableModel, public TrackModel {
     bool isColumnHiddenByDefault(
             int column) override;
 
+    bool isColumnSortable(int column) const override {
+        return column != m_stemsColumn;
+    }
+
     TrackPointer getTrackByRef(
             const TrackRef& trackRef) const override;
 
@@ -153,6 +159,17 @@ class BaseTrackTableModel : public QAbstractTableModel, public TrackModel {
     // used by fieldIndex().
     void initTableColumnsAndHeaderProperties(
             const QStringList& tableColumns);
+
+    /// True for models that should append the read-only Stems status column.
+    /// Only the internal collection is supported; external collections have
+    /// foreign track ids and no stem index.
+    virtual bool isStemsColumnEnabled() const {
+        return false;
+    }
+
+    int stemsColumn() const {
+        return m_stemsColumn;
+    }
 
     QString columnNameForFieldIndex(int index) const {
         return m_columnCache.columnNameForFieldIndex(index);
@@ -288,6 +305,14 @@ class BaseTrackTableModel : public QAbstractTableModel, public TrackModel {
     QVariant rawSiblingValue(
             const QModelIndex& index,
             ColumnCache::Column siblingField) const;
+
+    QVariant stemsStatusValue(const QModelIndex& index, int role) const;
+    void ensureStemServiceConnected() const;
+    void onStemStatusChanged(TrackId trackId);
+
+    int m_stemsColumn = -1;
+    mutable QHash<TrackId, mixxx::stems::StemService::Status> m_stemStatusCache;
+    mutable bool m_stemServiceConnected = false;
 
     // Track models may reference tracks by an external id
     // TODO: TrackId should only be used for tracks from
