@@ -4,13 +4,11 @@
 #include <QDialogButtonBox>
 #include <QDir>
 #include <QFile>
-#include <QFileDialog>
 #include <QInputDialog>
 #include <QList>
 #include <QListWidget>
 #include <QMessageBox>
 #include <QModelIndex>
-#include <QSet>
 #include <QVBoxLayout>
 
 #include "analyzer/analyzerscheduledtrack.h"
@@ -598,12 +596,6 @@ void WTrackMenu::createActions() {
                 this,
                 &WTrackMenu::slotGenerateStems);
 
-        m_pStemExportAction = make_parented<QAction>(tr("Save Stems As..."), this);
-        connect(m_pStemExportAction,
-                &QAction::triggered,
-                this,
-                &WTrackMenu::slotStemExport);
-
         m_pRemoveStemsAction = make_parented<QAction>(tr("Remove Stems"), this);
         connect(m_pRemoveStemsAction,
                 &QAction::triggered,
@@ -789,7 +781,6 @@ void WTrackMenu::setupActions() {
 
     if (m_pGenerateStemsAction) {
         addAction(m_pGenerateStemsAction);
-        addAction(m_pStemExportAction);
         addAction(m_pRemoveStemsAction);
     }
 
@@ -1849,83 +1840,6 @@ void WTrackMenu::slotReanalyzeWithVariableTempo() {
     AnalyzerTrack::Options options;
     options.useFixedTempo = false;
     addToAnalysis(options);
-}
-
-void WTrackMenu::slotStemExport() {
-    auto* pService = mixxx::stems::StemService::instance();
-    if (pService == nullptr) {
-        QMessageBox::information(this,
-                tr("Save Stems As..."),
-                tr("Stem separation is not available in this session."));
-        return;
-    }
-    TrackPointerList tracks;
-    for (const auto& pTrack : getTrackPointers()) {
-        if (pTrack) {
-            tracks.append(pTrack);
-        }
-    }
-    if (tracks.isEmpty()) {
-        return;
-    }
-
-    const QString defaultDirectory = m_pConfig->getValue(
-            ConfigKey("[Stems]", "OutputDirectory"),
-            QDir(m_pConfig->getSettingsPath()).filePath(QStringLiteral("Stems")));
-    const QString directory = QFileDialog::getExistingDirectory(this,
-            tr("Save Stems As..."),
-            defaultDirectory);
-    if (directory.isEmpty()) {
-        return;
-    }
-
-    QString singleSetName;
-    if (tracks.size() == 1) {
-        const QString title = tracks.first()->getTitle().trimmed();
-        bool accepted = false;
-        singleSetName = QInputDialog::getText(this,
-                tr("Save Stems As..."),
-                tr("Stem set name:"),
-                QLineEdit::Normal,
-                mixxx::stems::uniqueStemSetName(directory,
-                        title.isEmpty() ? QStringLiteral("stems") : title),
-                &accepted);
-        if (!accepted || singleSetName.trimmed().isEmpty()) {
-            return;
-        }
-    }
-
-    QList<TrackId> queuedTracks;
-    QSet<QString> usedNames;
-    for (const auto& pTrack : std::as_const(tracks)) {
-        const QString title = pTrack->getTitle().trimmed();
-        QString setName = tracks.size() == 1
-                ? singleSetName
-                : mixxx::stems::uniqueStemSetName(directory,
-                          title.isEmpty() ? QStringLiteral("stems") : title);
-        for (int suffix = 2; usedNames.contains(setName); ++suffix) {
-            setName = QStringLiteral("%1 (%2)")
-                              .arg(mixxx::stems::sanitizeStemSetName(
-                                      title.isEmpty() ? QStringLiteral("stems")
-                                                      : title))
-                              .arg(suffix);
-        }
-        usedNames.insert(setName);
-
-        mixxx::stems::StemExportRequest request;
-        request.track = pTrack;
-        request.outputDirectory = directory;
-        request.setName = setName;
-        if (pService->queueExport(request)) {
-            queuedTracks.append(pTrack->getId());
-        }
-    }
-    if (queuedTracks.isEmpty()) {
-        QMessageBox::information(this,
-                tr("Save Stems As..."),
-                tr("These tracks are already queued for stem separation."));
-        return;
-    }
 }
 
 void WTrackMenu::slotGenerateStems() {

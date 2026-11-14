@@ -415,6 +415,9 @@ void StemService::processJob(Job& job,
                 QStringLiteral("The track contains no audio."));
         return;
     }
+    kLogger.info() << "Separating track" << trackId << "at"
+                   << pSource->getSignalInfo().getSampleRate().value() << "Hz,"
+                   << frames << "frames; model expects" << sampleRate << "Hz";
 
     std::vector<float> planar(
             static_cast<std::size_t>(2) * static_cast<std::size_t>(frames), 0.0f);
@@ -441,10 +444,12 @@ void StemService::processJob(Job& job,
             for (SINT frame = 0; frame < read; ++frame) {
                 const std::size_t sourceIndex =
                         static_cast<std::size_t>(frame) * channels;
-                const std::size_t stereoIndex =
-                        static_cast<std::size_t>(offset + frame) * 2;
-                planar[stereoIndex] = readable.readableData()[sourceIndex];
-                planar[stereoIndex + 1] = channels == 1
+                const std::size_t destinationIndex =
+                        static_cast<std::size_t>(offset + frame);
+                // The separator takes planar [channels][frames], not interleaved
+                // stereo. Interleaving here time-squeezes the whole track.
+                planar[destinationIndex] = readable.readableData()[sourceIndex];
+                planar[frames + destinationIndex] = channels == 1
                         ? readable.readableData()[sourceIndex]
                         : readable.readableData()[sourceIndex + 1];
             }
@@ -456,11 +461,13 @@ void StemService::processJob(Job& job,
     std::vector<CSAMPLE> separated(
             static_cast<std::size_t>(frames) * kStemChannelCount, 0.0f);
     bool outputValid = true;
+    SINT outputEnd = 0;
     const bool completed = (*ppSeparator)->separate(planar.data(), frames, [&](SINT offset, const CSAMPLE* pBuffer, SINT count) {
                 if (offset < 0 || count <= 0 || offset + count > frames) {
                     outputValid = false;
                     return false;
                 }
+                outputEnd = std::max(outputEnd, offset + count);
                 std::copy(pBuffer,
                         pBuffer + static_cast<std::size_t>(count) * kStemChannelCount,
                         separated.begin() + static_cast<std::size_t>(offset) *
@@ -487,6 +494,7 @@ void StemService::processJob(Job& job,
         }
         return;
     }
+    kLogger.info() << "Separator covered frames" << outputEnd << "of" << frames;
 
     // One scalar gain over all stems and their sum keeps the mix reconstructible
     // and inside [-1, 1]; the writer then encodes without clipping.

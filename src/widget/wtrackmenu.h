@@ -166,7 +166,6 @@ class WTrackMenu : public QMenu {
     void slotReanalyzeWithVariableTempo();
 
     // Stem export
-    void slotStemExport();
     void slotGenerateStems();
     void slotRemoveStems();
 
@@ -367,7 +366,6 @@ class WTrackMenu : public QMenu {
     parented_ptr<QAction> m_pReanalyzeVarBpmAction;
 
     // Stem export
-    parented_ptr<QAction> m_pStemExportAction;
     parented_ptr<QAction> m_pGenerateStemsAction;
     parented_ptr<QAction> m_pRemoveStemsAction;
 

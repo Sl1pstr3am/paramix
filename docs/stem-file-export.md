@@ -91,9 +91,9 @@ is a separate, user-facing artifact.
 - Schema revision 41 adds the `stem_set` index table
   (`src/library/dao/stemsetdao.{h,cpp}`); the row is written after the set is
   renamed into place.
-- The library track context menu has **Generate Stems** (one-click, default
-  folder), **Save Stems As...** (folder and set name) and **Remove Stems**.
-  Selecting several tracks generates one set per track.
+- The library track context menu has **Generate Stems** (queues a set in the
+  configured folder) and **Remove Stems**. Selecting several tracks generates
+  one set per track.
 - `StemService` separates on a low-priority background thread, applies the
   shared scalar limiter, then calls `writeStemSet()` with the Settings -> Stems
   format. Progress and failures appear in an inline status bar at the bottom of
